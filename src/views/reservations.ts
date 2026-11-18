@@ -1,6 +1,6 @@
 // Reservas del coche: quien lo necesita un día lo anota, y el resto lo ve aquí y en el calendario.
 import { h } from '../dom';
-import { fmtKm, type Reservation } from '../domain';
+import { fmtKm, type Reservation, riders } from '../domain';
 import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
 import { busy, errorText, pageHead, toast, withColor } from '../ui';
@@ -37,7 +37,7 @@ function usedBy(st: AppState, r: Reservation): { email: string; km: number }[] {
   for (const v of st.ledger.trips) {
     const k = isoDay(new Date(v.trip.date));
     if (k < r.day || k > r.endDay) continue;
-    by.set(v.trip.driver, (by.get(v.trip.driver) ?? 0) + v.km);
+    for (const p of riders(v.trip)) by.set(p, (by.get(p) ?? 0) + v.km / riders(v.trip).length);
   }
   return [...by.entries()].map(([email, km]) => ({ email, km })).sort((a, b) => b.km - a.km);
 }

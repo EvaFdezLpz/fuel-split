@@ -1,0 +1,53 @@
+// Viajes compartidos y km apuntados por otra persona, en la demo (móvil).
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, colorScheme: 'light', isMobile: true, hasTouch: true });
+p.on('pageerror', (e) => console.log('pageerror', e.message));
+p.on('console', (m) => m.type() === 'error' && console.log('console', m.text()));
+p.on('dialog', (d) => d.accept());
+const nav = async (h) => { await p.evaluate((x) => (location.hash = x), h); await p.waitForTimeout(500); };
+const out = '.impeccable/review/';
+await p.goto('http://localhost:5173/?demo&como=marta#/');
+await p.waitForTimeout(800);
+console.log('Por revisar:', await p.$eval('.fix-list', (e) => e.innerText.replace(/\s+/g, ' ')).catch(() => '-'));
+await (await p.$('.fix-list'))?.screenshot({ path: out + 'sh-home.png' });
+const shareBefore = await p.$eval('.fix-list', () => 1).catch(() => 0);
+// Fue otro: el hueco de 17 km lo hicieron Javier y Carmen juntos
+await nav('#/viajes');
+const rows = await p.$$('.gap-row');
+for (const r of rows) if ((await r.innerText()).includes('17 km')) await (await r.$('button.ghost')).click();
+await p.waitForTimeout(600);
+await p.screenshot({ path: out + 'sh-form-empty.png', fullPage: true });
+await p.click('form button[type=submit]');
+await p.waitForTimeout(300);
+console.log('Sin elegir:', await p.$eval('form .error[role=alert]', (e) => e.textContent));
+const chips = await p.$$('.who-chips');
+await (await chips[0].$('button:has-text("Javier")')).click();
+await p.waitForTimeout(200);
+const chips2 = await p.$$('.who-chips');
+await (await chips2[1].$('button:has-text("Carmen")')).click();
+await p.waitForTimeout(200);
+console.log('Fotos ocultas:', await p.$$eval('.photo-pick', (e) => e.map((x) => x.hidden)));
+console.log('Resumen:', await p.$eval('.calc', (e) => e.innerText));
+await p.screenshot({ path: out + 'sh-form.png', fullPage: true });
+await p.click('form button[type=submit]');
+await p.waitForTimeout(800);
+console.log('toast:', await p.$eval('.toast', (e) => e.innerText).catch(() => '-'));
+console.log('Huecos con 17 km:', await p.$$eval('.gap-row', (r) => r.filter((x) => x.innerText.includes('17 km')).length));
+const row = await p.$('tr:has(.with-mark)');
+await row?.screenshot({ path: out + 'sh-row.png' });
+await row?.click();
+await p.waitForTimeout(400);
+await p.screenshot({ path: out + 'sh-detail.png' });
+console.log('Detalle:', await p.$eval('dialog[open]', (e) => e.innerText.replace(/\s+/g, ' ')).catch(() => '-'));
+await p.keyboard.press('Escape');
+// Marta confirma el viaje compartido de Lucía
+await nav('#/');
+const ok = await p.$('.fix-row button:has-text("Es correcto")');
+await ok?.click();
+await p.waitForTimeout(500);
+console.log('Por revisar tras confirmar:', await p.$eval('.fix-list', (e) => e.innerText.replace(/\s+/g, ' ')).catch(() => '-'));
+// Formulario normal: acompañantes
+await nav('#/viajes/nuevo');
+await p.screenshot({ path: out + 'sh-new.png', fullPage: true });
+await b.close();

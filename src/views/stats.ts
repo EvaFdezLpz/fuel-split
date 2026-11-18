@@ -1,6 +1,6 @@
 // Estadísticas: totales y gráficos de viajes, repostajes, km y gasto por persona en un rango de fechas.
 import { h } from '../dom';
-import { fmtEur, fmtKm, groupThousands, type Member } from '../domain';
+import { fmtEur, fmtKm, groupThousands, type Member, riders } from '../domain';
 import { icon } from '../icons';
 import type { AppState } from '../state';
 import { pageHead, withColor } from '../ui';
@@ -159,8 +159,11 @@ export function statsView(st: AppState, rerender: () => void): Node {
   const kmBy = new Map(members.map((m) => [m.email, 0]));
   const tripsBy = new Map(members.map((m) => [m.email, 0]));
   for (const v of trips) {
-    kmBy.set(v.trip.driver, (kmBy.get(v.trip.driver) ?? 0) + v.km);
-    tripsBy.set(v.trip.driver, (tripsBy.get(v.trip.driver) ?? 0) + 1);
+    const people = riders(v.trip);
+    for (const p of people) {
+      kmBy.set(p, (kmBy.get(p) ?? 0) + v.km / people.length);
+      tripsBy.set(p, (tripsBy.get(p) ?? 0) + 1);
+    }
   }
   const centsBy = new Map(members.map((m) => [m.email, 0]));
   for (const r of refuels) for (const s of r.shares) centsBy.set(s.email, (centsBy.get(s.email) ?? 0) + s.cents);

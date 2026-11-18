@@ -65,6 +65,7 @@ export function createDemoBackend(): Backend {
   add(m, 22, 182_240, null);
   add(p, 20, 182_311, 182_356, [false, true]);
   add(l, 15, 182_356, 182_430);
+  trips[trips.length - 1].with = [m, p]; // viaje juntos: los 74 km se reparten entre los tres
   add(j, 11, 182_430, 182_598);
   add(m, 7, 182_612, 182_665);
   add(c, 4, 182_665, 182_731);
@@ -169,12 +170,26 @@ export function createDemoBackend(): Backend {
       return () => listeners.delete(cb);
     },
     async addTrip(i) {
-      trips.push({ id: id(), driver: who.email, date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, createdAt: Date.now() });
+      trips.push({ id: id(), driver: who.email, date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, createdAt: Date.now(), with: i.with ?? [], addedBy: null, confirmed: [] });
+      emit();
+    },
+    async addTripFor(driver, i) {
+      trips.push({ id: id(), driver, date: i.date, start: { km: i.startKm, photoId: null }, end: { km: i.endKm, photoId: null }, note: i.note, createdAt: Date.now(), with: i.with ?? [], addedBy: who.email, confirmed: [] });
+      emit();
+    },
+    async confirmTrip(tid) {
+      const t = trips.find((x) => x.id === tid);
+      if (t) t.confirmed = [...new Set([...(t.confirmed ?? []), who.email])];
+      emit();
+    },
+    async leaveTrip(tid) {
+      const t = trips.find((x) => x.id === tid);
+      if (t) t.with = (t.with ?? []).filter((e) => e !== who.email);
       emit();
     },
     async updateTrip(tid, i) {
       const t = trips.find((x) => x.id === tid);
-      if (t) Object.assign(t, { date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note });
+      if (t) Object.assign(t, { date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, ...(i.with ? { with: i.with } : {}) });
       emit();
     },
     async deleteTrip(tid) {

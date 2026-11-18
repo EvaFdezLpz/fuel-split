@@ -49,7 +49,9 @@ function shareTable(st: AppState, r: RefuelView) {
 function refuelBlock(st: AppState, r: RefuelView) {
   const f = r.refuel;
   const mine = f.payer === st.me.email;
-  const canDelete = mine && Date.now() - f.createdAt < 24 * 3600_000;
+  // Si alguien ya ha marcado su Bizum de este repostaje, no se borra: ese pago se quedaría sin depósito.
+  const hasPayments = st.snap.payments.some((p) => p.refuelId === f.id);
+  const canDelete = mine && !hasPayments && Date.now() - f.createdAt < 24 * 3600_000;
   const del = canDelete ? h('button', { class: 'btn ghost danger sm', type: 'button' }, icon('trash'), 'Borrar') : null;
   del?.addEventListener('click', async () => {
     if (!confirm(`¿Borrar ${r.code}? Solo se puede durante las primeras 24 h.`)) return;
@@ -194,7 +196,8 @@ function parseMoney(raw: string, decimals: number): number | null {
 export function refuelFormView(st: AppState): Node {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const date = h('input', { class: 'input', type: 'datetime-local', id: 'r-date', value: now.toISOString().slice(0, 16) });
+  const dateDefault = now.toISOString().slice(0, 16);
+  const date = h('input', { class: 'input', type: 'datetime-local', id: 'r-date', value: dateDefault });
   const amount = h('input', { class: 'input big num', id: 'r-amount', inputmode: 'decimal', placeholder: '0,00', autocomplete: 'off' });
   const price = h('input', { class: 'input big num', id: 'r-price', inputmode: 'decimal', placeholder: '1,539', autocomplete: 'off' });
   const litersOut = h('div', { class: 'hint num', 'aria-live': 'polite' });
@@ -252,19 +255,53 @@ export function refuelFormView(st: AppState): Node {
   const preview = h('section', { class: 'block', 'aria-live': 'polite' });
 
   // Resumen breve del tramo que cierra este repostaje.
-  const prevRefuel = st.ledger.refuels[st.ledger.refuels.length - 1] ?? null;
+  const lastRefuel = st.ledger.refuels[st.ledger.refuels.length - 1] ?? null;
   const firstKm = st.ledger.trips.length ? Math.min(...st.ledger.trips.map((v) => v.trip.start.km ?? Infinity)) : null;
-  const tramoFrom = prevRefuel ? prevRefuel.toKm : firstKm;
+  /** Repostajes entre los que cae un km: si es menor que el último, es un repostaje que se olvidó apuntar. */
+  const around = (km: number | null) => {
+    const ok = km != null && !Number.isNaN(km);
+    const prev = ok ? ([...st.ledger.refuels].reverse().find((r) => r.toKm < km!) ?? null) : lastRefuel;
+    const next = ok ? (st.ledger.refuels.find((r) => r.toKm > km!) ?? null) : null;
+    return { prev, next, late: !!next };
+  };
+  const dateDetails = h('details', { class: 'more' });
+  const lateBox = h('div', { 'aria-live': 'polite' });
   const tramoBox = h('div', { class: 'tramo-line', 'aria-live': 'polite' });
   odo.el.append(tramoBox);
   odo.el.querySelector('legend')?.prepend(h('span', { class: 'step-n', 'aria-hidden': 'true' }, '2'));
   const renderTramo = (km: number | null, cents: number | null, priceMilli: number | null) => {
     tramoBox.replaceChildren();
+    lateBox.replaceChildren();
+    const { prev: prevRefuel, next, late } = around(km);
+    const tramoFrom = prevRefuel ? prevRefuel.toKm : firstKm;
+    if (late && next) {
+      dateDetails.open = true;
+      lateBox.append(
+        h(
+          'div',
+          { class: 'late-note', role: 'note' },
+          icon('alert', 16),
+          h(
+            'div',
+            null,
+            h('b', null, 'Repostaje que se olvidó apuntar. '),
+            prevRefuel
+              ? `Va entre el depósito del ${dayMonth(prevRefuel.refuel.date)} (${fmtKm(prevRefuel.toKm)}) y el del ${dayMonth(next.refuel.date)} (${fmtKm(next.toKm)}).`
+              : `Va antes del depósito del ${dayMonth(next.refuel.date)} (${fmtKm(next.toKm)}).`,
+            ' Pon abajo la fecha en que se llenó. Si esos depósitos ya estaban pagados, la app calcula lo que hay que ajustar. Si no tienes foto del surtidor, vale la del ticket o la del cargo en el banco.',
+          ),
+        ),
+      );
+    }
     if (tramoFrom == null || !Number.isFinite(tramoFrom)) {
       tramoBox.append(h('p', { class: 'hint' }, 'Primer repostaje: el reparto empezará a contar desde aquí.'));
       return;
     }
     const since = prevRefuel ? `el depósito del ${dayMonth(prevRefuel.refuel.date)}` : 'el primer viaje';
+    if (km != null && st.ledger.refuels.some((r) => r.toKm === km)) {
+      tramoBox.append(h('p', { class: 'error' }, `Ya hay un repostaje apuntado a ${fmtKm(km)}.`));
+      return;
+    }
     if (km == null || Number.isNaN(km) || km <= tramoFrom) {
       tramoBox.append(h('p', { class: 'hint num' }, `El anterior se llenó a ${fmtKm(tramoFrom)}.`));
       return;
@@ -287,7 +324,7 @@ export function refuelFormView(st: AppState): Node {
       ),
     );
     if (missing > 0)
-      tramoBox.append(h('p', { class: 'hint warn-line' }, icon('alert', 14), `${fmtKm(missing)} sin apuntar en viajes: no se cobran a nadie. `, h('a', { href: '#/viajes' }, 'Ver viajes')));
+      tramoBox.append(h('p', { class: 'hint warn-line' }, icon('alert', 14), `${fmtKm(missing)} sin apuntar en viajes: se reparten entre todos según sus km si nadie los reclama. `, h('a', { href: '#/viajes' }, 'Ver viajes')));
     if (cents && priceMilli && !Number.isNaN(priceMilli)) {
       const liters = (cents * 10) / priceMilli;
       if (liters > TANK_LITERS + 2)
@@ -309,7 +346,7 @@ export function refuelFormView(st: AppState): Node {
       return;
     }
     // Simulación con los mismos datos y la misma función que usará la app tras guardar.
-    const fake = { id: '__preview', payer: st.me.email, date: Date.now(), amountCents: c, priceMilli: p && !Number.isNaN(p) ? p : 1, odometerKm: km, odometerPhotoId: null, receiptPhotoId: '', note: '', createdAt: Date.now() };
+    const fake = { id: '__preview', payer: st.me.email, date: new Date(date.value).getTime() || Date.now(), amountCents: c, priceMilli: p && !Number.isNaN(p) ? p : 1, odometerKm: km, odometerPhotoId: null, receiptPhotoId: '', note: '', createdAt: Date.now() };
     const sim = buildLedger(st.snap.trips, [...st.snap.refuels, fake], []);
     const r = sim.refuels.find((x) => x.refuel.id === '__preview');
     if (!r) return;
@@ -338,8 +375,13 @@ export function refuelFormView(st: AppState): Node {
     );
   };
   [amount, price, odo.input].forEach((i) => i.addEventListener('input', refresh));
+  date.addEventListener('change', () => ((formErr.textContent = ''), refresh()));
   refresh();
 
+  dateDetails.append(
+    h('summary', null, 'Fecha y nota'),
+    h('div', { class: 'more-body' }, h('div', { class: 'field' }, h('label', { for: 'r-date' }, 'Fecha y hora'), date), h('div', { class: 'field' }, h('label', { for: 'r-note' }, 'Nota (opcional)'), note)),
+  );
   const save = h('button', { class: 'btn primary', type: 'submit' }, icon('check'), 'Guardar repostaje');
   const step = (n: string, title: string) => h('div', { class: 'reading-head' }, h('legend', { class: 'label' }, h('span', { class: 'step-n', 'aria-hidden': 'true' }, n), title));
   const form = h(
@@ -362,12 +404,8 @@ export function refuelFormView(st: AppState): Node {
       litersOut,
     ),
     odo.el,
-    h(
-      'details',
-      { class: 'more' },
-      h('summary', null, 'Fecha y nota'),
-      h('div', { class: 'more-body' }, h('div', { class: 'field' }, h('label', { for: 'r-date' }, 'Fecha y hora'), date), h('div', { class: 'field' }, h('label', { for: 'r-note' }, 'Nota (opcional)'), note)),
-    ),
+    lateBox,
+    dateDetails,
     formErr,
     h('div', { class: 'formbar' }, h('a', { class: 'btn ghost', href: '#/repostajes' }, 'Cancelar'), save),
   );
@@ -392,8 +430,17 @@ export function refuelFormView(st: AppState): Node {
     if (km == null || Number.isNaN(km) || km > MAX_KM) odo.setError('Escribe el km del cuentakilómetros.'), (ok = false);
     if (!receipt.pending()) (receiptErr.textContent = 'Falta la foto del surtidor: es la prueba del pago.'), (ok = false);
     if (!Number.isFinite(when) || when > Date.now() + 3600_000) (formErr.textContent = 'La fecha no es válida.'), (ok = false);
-    const lastRefuel = st.ledger.refuels[st.ledger.refuels.length - 1];
-    if (ok && lastRefuel && km! <= lastRefuel.toKm) odo.setError(`Debe ser mayor que el del último repostaje (${fmtKm(lastRefuel.toKm)}).`), (ok = false);
+    if (ok && st.ledger.refuels.some((r) => r.toKm === km)) odo.setError(`Ya hay un repostaje apuntado a ${fmtKm(km!)}.`), (ok = false);
+    const pos = around(km);
+    if (ok && pos.late && pos.next) {
+      // Repostaje olvidado: la fecha tiene que ser la real, entre los depósitos de alrededor.
+      if (date.value === dateDefault) (formErr.textContent = 'Pon la fecha en que se llenó el depósito (en «Fecha y nota»).'), (ok = false);
+      else if (when > pos.next.refuel.date || (pos.prev && when < pos.prev.refuel.date))
+        (formErr.textContent = pos.prev
+          ? `La fecha tiene que estar entre el depósito del ${dayMonth(pos.prev.refuel.date)} y el del ${dayMonth(pos.next.refuel.date)}.`
+          : `La fecha tiene que ser anterior al depósito del ${dayMonth(pos.next.refuel.date)}.`),
+          (ok = false);
+    }
     if (!ok) return;
     busy(save, true);
     try {

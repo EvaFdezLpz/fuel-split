@@ -1,6 +1,6 @@
 # Seguridad de Depósito común
 
-La app es una SPA estática (Firebase Hosting) que habla directamente con Firestore. **La frontera de seguridad son las reglas de Firestore** (`firestore.rules`): el navegador se puede manipular, las reglas no. Están cubiertas por 38 pruebas automáticas contra el emulador (`npm run test:rules`).
+La app es una SPA estática (Firebase Hosting) que habla directamente con Firestore. **La frontera de seguridad son las reglas de Firestore** (`firestore.rules`): el navegador se puede manipular, las reglas no. Están cubiertas por 46 pruebas automáticas contra el emulador (`npm run test:rules`).
 
 ## OWASP Top 10 (2021)
 
@@ -10,6 +10,7 @@ La app es una SPA estática (Firebase Hosting) que habla directamente con Firest
 | **A02 Fallos criptográficos** | Solo HTTPS (HSTS con preload, `upgrade-insecure-requests`). Sin secretos en el cliente (la API key de Firebase es pública por diseño; restríngela por dominio). |
 | **A03 Inyección / XSS** | El DOM se construye solo con `textContent`/`createElement` (`src/dom.ts`), sin `innerHTML`. CSP estricta sin `unsafe-inline` ni `unsafe-eval`. **Trusted Types obligatorios** con política por defecto que sanea con DOMPurify y solo admite scripts de orígenes permitidos. Atributos `on*`/`style` y URLs no permitidas se descartan. Consultas Firestore sin concatenación de cadenas (no hay inyección NoSQL). |
 | **A04 Diseño inseguro** | Validación de negocio en servidor: km enteros y coherentes (final ≥ inicial, ≤ 3.000 km por viaje), importes 1–300 €, precio 0,5–4 €/l, fechas no futuras, `createdAt = request.time`. Repostajes y fotos inmutables. ID de pago determinista (`<repostaje>__<correo>`) → sin duplicados ni condiciones de carrera. |
+| **Cargar km a otro** | Apuntar un viaje a nombre de otra persona queda marcado con quién lo apuntó (`addedBy`, impuesto por las reglas), sin fotos ajenas y ya terminado. Quien lo apuntó no puede editarlo, y pasadas 24 h tampoco borrarlo. La persona afectada lo ve en su Resumen y lo puede borrar **siempre** («No fui yo»). En un viaje compartido, cada acompañante solo puede confirmarse o quitarse a sí mismo, y solo puede ser acompañante alguien de la lista blanca. |
 | **Dinero que no ha llegado** | Un Bizum marcado como enviado pero **sin confirmar** nunca genera deudas a favor de quien lo marcó: los ajustes solo se calculan sobre pagos confirmados por quien los recibe, y los ajustes enviados cubren como mucho lo que falta. Si alguien marca un importe distinto del que le toca, quien lo recibe ve el aviso «No cuadra» antes de confirmar. |
 | **A05 Configuración insegura** | Cabeceras: CSP, `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP. Sin source maps en producción. Mensajes de error genéricos. Modo demo excluido del build de producción. |
 | **A06 Componentes vulnerables** | Dependencias fijadas en `package-lock.json`; ningún script cargado de CDNs en tiempo de ejecución; datos del OCR con hash SHA-256 verificado en el build. Revisa `npm audit --omit=dev` antes de desplegar (los avisos actuales de `@grpc/grpc-js` afectan solo a Node, no al navegador). |

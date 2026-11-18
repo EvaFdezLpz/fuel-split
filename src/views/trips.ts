@@ -1,5 +1,5 @@
 import { h, type Child } from '../dom';
-import { fmtEur, fmtKm, groupThousands, type TripView } from '../domain';
+import { fmtEur, fmtKm, fmtKmShare, groupThousands, needsConfirmation, riders, type TripView } from '../domain';
 import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
 import { busy, dayMonth, dialog, errorText, tramoName, evidencePill, fmtDate, linkBtn, pageHead, showEvidence, toast, who, withColor } from '../ui';
@@ -27,7 +27,14 @@ export function tripRow(st: AppState, v: TripView) {
     h(
       'span',
       { class: 'trip-main' },
-      h('span', { class: 'trip-who' }, withColor(h('span', { class: 'dot', 'aria-hidden': 'true' }), m), h('span', { class: 'strong' }, mine ? `${m.name} (tú)` : m.name)),
+      h(
+        'span',
+        { class: 'trip-who' },
+        withColor(h('span', { class: 'dot', 'aria-hidden': 'true' }), m),
+        h('span', { class: 'strong' }, mine ? `${m.name} (tú)` : m.name),
+        t.with?.length ? h('span', { class: 'small muted with-tag' }, icon('users', 13), `con ${t.with.map((e) => memberOf(st, e).name).join(', ')}`) : null,
+        t.addedBy ? h('span', { class: 'pill neutral' }, `Apuntado por ${memberOf(st, t.addedBy).name}`) : null,
+      ),
       h(
         'span',
         { class: 'trip-odo num' },
@@ -74,12 +81,41 @@ export function tripDetail(st: AppState, v: TripView) {
       h('dd', { class: 'num kv-ev' }, v.endState !== 'open' ? evidencePill(v.endState, '', photoBtn(t.end.photoId, 'km final')) : null, v.endKm != null ? fmtKm(v.endKm) : 'Sin terminar'),
       h('dt', null, 'Recorrido'),
       h('dd', { class: 'num strong' }, fmtKm(v.km)),
+      t.with?.length ? h('dt', null, 'Iban') : null,
+      t.with?.length
+        ? h('dd', null, riders(t).map((e) => memberOf(st, e).name).join(', '), h('span', { class: 'muted' }, ` · ${fmtKmShare(v.km / riders(t).length)} cada uno`))
+        : null,
+      t.addedBy ? h('dt', null, 'Apuntado por') : null,
+      t.addedBy ? h('dd', null, who(st, t.addedBy)) : null,
     ),
+    (() => {
+      const waiting = riders(t).filter((e) => needsConfirmation(t, e));
+      return waiting.length ? h('p', { class: 'small muted' }, `Falta que lo confirme: ${waiting.map((e) => memberOf(st, e).name).join(', ')}.`) : null;
+    })(),
     v.endState === 'inferred' ? h('p', { class: 'notice' }, icon('swap'), h('span', null, `No se registró el km final. Se toma el inicio del siguiente viaje: ${fmtKm(v.endKm ?? 0)}.`)) : null,
     t.note ? h('p', { class: 'muted' }, t.note) : null,
   ];
   const foot: Node[] = [];
-  if (mine) {
+  const close = () => d.close();
+  foot.push(...confirmActions(st, v, close));
+  const byOther = !!t.addedBy && t.addedBy !== st.me.email;
+  if (!mine && t.addedBy === st.me.email && Date.now() - t.createdAt < 24 * 3600_000) {
+    const undo = h('button', { class: 'btn ghost danger sm', type: 'button' }, icon('trash'), 'Borrar');
+    undo.addEventListener('click', async () => {
+      if (!confirm('¿Borrar el viaje que apuntaste? Solo se puede en las primeras 24 h.')) return;
+      busy(undo, true, 'Borrando…');
+      try {
+        await st.backend.deleteTrip(t.id);
+        close();
+        toast('Viaje borrado');
+      } catch (e) {
+        busy(undo, false);
+        toast(errorText(e), 'alert');
+      }
+    });
+    foot.push(undo);
+  }
+  if (mine && !byOther) {
     const del = h('button', { class: 'btn ghost danger sm', type: 'button' }, icon('trash'), 'Borrar');
     del.addEventListener('click', async () => {
       if (!confirm(`¿Borrar el ${v.code}? Solo se puede en las 24 h siguientes a crearlo.`)) return;
@@ -163,9 +199,21 @@ export function personTripsCard(st: AppState, email: string, trips: TripView[], 
                   h('td', { class: 'num' }, dayMonth(v.trip.date)),
                   h(
                     'td',
-                    { class: 'num muted' },
-                    `${groupThousands(v.trip.start.km ?? 0)} → ${v.endKm != null ? groupThousands(v.endKm) : '…'}`,
-                    doubt ? h('span', { class: 'doubt', title: 'Falta alguna foto del cuentakilómetros' }, icon('alert', 13)) : null,
+                    { class: 'muted odo-cell' },
+                    h('span', { class: 'num' }, `${groupThousands(v.trip.start.km ?? 0)} →`),
+                    ' ',
+                    h('span', { class: 'num' }, v.endKm != null ? groupThousands(v.endKm) : '…'),
+                    doubt || v.trip.with?.length || v.trip.addedBy
+                      ? h(
+                          'span',
+                          { class: 'row-marks' },
+                          doubt ? h('span', { class: 'doubt', title: 'Falta alguna foto del cuentakilómetros' }, icon('alert', 13)) : null,
+                          v.trip.with?.length
+                            ? h('span', { class: 'doubt with-mark', title: `Con ${v.trip.with.map((e) => memberOf(st, e).name).join(', ')}: los km se reparten` }, icon('users', 13), `+${v.trip.with.length}`)
+                            : null,
+                          v.trip.addedBy ? h('span', { class: 'doubt with-mark', title: `Apuntado por ${memberOf(st, v.trip.addedBy).name}` }, icon('edit', 13)) : null,
+                        )
+                      : null,
                   ),
                   h(
                     'td',
@@ -355,4 +403,45 @@ export function tripsView(st: AppState, rerender: () => void): Node {
     list,
     issues,
   );
+}
+
+/**
+ * «Es correcto» / «No fui yo» / «No iba» para quien tiene que confirmar un viaje: el que lo apuntó
+ * otra persona a su nombre, o en el que le han puesto como acompañante.
+ */
+export function confirmActions(st: AppState, v: TripView, done?: () => void): HTMLElement[] {
+  const t = v.trip;
+  const me = st.me.email;
+  if (!needsConfirmation(t, me)) return [];
+  const isDriver = t.driver === me;
+  const ok = h('button', { class: 'btn primary sm', type: 'button' }, icon('check'), 'Es correcto');
+  const no = h('button', { class: 'btn ghost danger sm', type: 'button' }, icon('close'), isDriver ? 'No fui yo' : 'No iba');
+  ok.addEventListener('click', async () => {
+    busy(ok, true);
+    try {
+      await st.backend.confirmTrip(t.id);
+      done?.();
+      toast('Confirmado');
+    } catch (e) {
+      busy(ok, false);
+      toast(errorText(e), 'alert');
+    }
+  });
+  no.addEventListener('click', async () => {
+    const q = isDriver
+      ? `¿Borrar este viaje de ${fmtKm(v.km)}? Esos km volverán a quedar sin apuntar.`
+      : `¿Quitarte de este viaje? Sus ${fmtKm(v.km)} se repartirán entre los demás que iban.`;
+    if (!confirm(q)) return;
+    busy(no, true);
+    try {
+      if (isDriver) await st.backend.deleteTrip(t.id);
+      else await st.backend.leaveTrip(t.id);
+      done?.();
+      toast(isDriver ? 'Viaje borrado' : 'Te has quitado del viaje');
+    } catch (e) {
+      busy(no, false);
+      toast(errorText(e), 'alert');
+    }
+  });
+  return [no, ok];
 }

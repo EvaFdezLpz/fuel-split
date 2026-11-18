@@ -34,6 +34,7 @@ import {
   Trash2,
   TriangleExclamationPoint,
   UserRound,
+  Users,
   Wallet,
   X,
   createElement,
@@ -75,6 +76,7 @@ const set = {
   trash: Trash2,
   alert: TriangleExclamationPoint,
   user: UserRound,
+  users: Users,
   wallet: Wallet,
   close: X,
 };

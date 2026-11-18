@@ -12,6 +12,10 @@ const config = {
       { source: '**', headers: toList(COMMON_HEADERS) },
       { source: '/', headers: toList(DOCUMENT_HEADERS) },
       { source: '/index.html', headers: toList(DOCUMENT_HEADERS) },
+      // El service worker y el manifiesto se revisan en cada visita: así las actualizaciones llegan enseguida.
+      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
+      { source: '/manifest.webmanifest', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
+      { source: '/icons/**', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }] },
       { source: '/assets/**', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
       {
         source: '/ocr/**',

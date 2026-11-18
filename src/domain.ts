@@ -23,6 +23,25 @@ export interface Trip {
   end: Reading;
   note: string;
   createdAt: number;
+  /** Viaje compartido: los demás que iban. Los km se reparten a partes iguales entre todos. */
+  with?: string[];
+  /** Si lo apuntó otra persona (km que se quedaron sin apuntar): quién. */
+  addedBy?: string | null;
+  /** Quiénes de los que no lo apuntaron han confirmado que es correcto. */
+  confirmed?: string[];
+}
+
+/** Quienes hicieron un viaje (conductor y acompañantes), sin repetir. */
+export function riders(t: Trip): string[] {
+  return [...new Set([t.driver, ...(t.with ?? [])])];
+}
+
+/** Personas que tienen que confirmar un viaje porque lo apuntó otro o las añadió como acompañantes. */
+export function needsConfirmation(t: Trip, email: string): boolean {
+  const ok = t.confirmed ?? [];
+  if (ok.includes(email) || t.addedBy === email) return false;
+  if ((t.with ?? []).includes(email)) return true;
+  return t.driver === email && !!t.addedBy && t.addedBy !== email;
 }
 
 export interface Refuel {
@@ -301,7 +320,9 @@ export function buildLedger(
       if (v.trip.start.km == null || v.endKm == null) continue;
       const o = overlap(v.trip.start.km, v.endKm, fromKm, toKm);
       if (o > 0) {
-        perDriver.set(v.trip.driver, (perDriver.get(v.trip.driver) ?? 0) + o);
+        // Viaje compartido: cada uno paga la misma parte de esos km.
+        const people = riders(v.trip);
+        for (const p of people) perDriver.set(p, (perDriver.get(p) ?? 0) + o / people.length);
       }
       if (v.refuelId == null && v.trip.start.km >= fromKm && v.trip.start.km < toKm) v.refuelId = refuel.id;
     }
@@ -376,7 +397,10 @@ export function buildLedger(
     if (top != null && (currentKm == null || top > currentKm)) currentKm = top;
     if (v.trip.start.km == null || v.endKm == null) continue;
     const o = overlap(v.trip.start.km, v.endKm, tramoFrom, Infinity);
-    if (o > 0) openPer.set(v.trip.driver, (openPer.get(v.trip.driver) ?? 0) + o);
+    if (o > 0) {
+      const people = riders(v.trip);
+      for (const p of people) openPer.set(p, (openPer.get(p) ?? 0) + o / people.length);
+    }
   }
   const lastView = refuelViews[refuelViews.length - 1];
   const estCentsPerKm =
@@ -561,8 +585,8 @@ export interface ProfileStats {
 
 export function profileStats(ledger: Ledger, email: string, from: number | null, to: number | null): ProfileStats {
   const inRange = (t: number) => (from == null || t >= from) && (to == null || t <= to);
-  const trips = ledger.trips.filter((v) => v.trip.driver === email && inRange(v.trip.date));
-  const km = trips.reduce((a, v) => a + v.km, 0);
+  const trips = ledger.trips.filter((v) => riders(v.trip).includes(email) && inRange(v.trip.date));
+  const km = trips.reduce((a, v) => a + v.km / riders(v.trip).length, 0);
   const tramos = ledger.refuels
     .filter((r) => inRange(r.refuel.date))
     .map((view) => ({
@@ -585,7 +609,7 @@ export function profileStats(ledger: Ledger, email: string, from: number | null,
   for (const v of trips) {
     const d = new Date(v.trip.date);
     const key = `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}`;
-    months.set(key, (months.get(key) ?? 0) + v.km);
+    months.set(key, (months.get(key) ?? 0) + v.km / riders(v.trip).length);
   }
   const byMonth = [...months.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -607,6 +631,10 @@ export function fmtEur(cents: number): string {
 export function fmtKm(km: number): string {
   // es-ES no agrupa números de 4 cifras por defecto; forzamos el punto para km.
   return `${groupThousands(km)} km`;
+}
+/** Km que pueden tener medio km (parte de un viaje compartido): 8,5 km. */
+export function fmtKmShare(km: number): string {
+  return Number.isInteger(km) ? fmtKm(km) : `${(Math.round(km * 10) / 10).toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`;
 }
 export function groupThousands(n: number): string {
   const s = String(Math.abs(Math.round(n)));

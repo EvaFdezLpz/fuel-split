@@ -1,5 +1,5 @@
 import { h } from '../dom';
-import { balanceFor, fmtEur, fmtKm, groupThousands, type Debt, type TripView } from '../domain';
+import { balanceFor, fmtEur, fmtKm, groupThousands, type Debt, type TripView, needsConfirmation, riders } from '../domain';
 import { icon, type IconName } from '../icons';
 import { memberOf, type AppState } from '../state';
 import { dayMonth, euroSeg, fmtDate, kmSeg, priceSeg, totemRow, who, withColor } from '../ui';
@@ -7,8 +7,8 @@ import { isoDay } from './calendar';
 import { issueList, legend, tramoBar } from './common';
 import { adjustReason, debtActions } from './expenses';
 import { reservationTile } from './reservations';
-import { personTripsCard, showTripsOf } from './trips';
-import { findGaps } from './gaps';
+import { personTripsCard, showTripsOf, confirmActions } from './trips';
+import { findGaps, suspiciousRefuels } from './gaps';
 
 /** Acción rápida: icono, título y una línea que dice qué hace. */
 function quick(href: string, ic: IconName, title: string, sub: string, primary = false) {
@@ -165,6 +165,26 @@ export function homeView(st: AppState): Node {
   const gapKm = gaps.reduce((x, g) => x + (g.toKm - g.fromKm), 0);
   const missing = ledger.trips.filter((v) => v.trip.driver === me.email && v.endState !== 'open' && (!v.trip.start.photoId || (v.trip.end.km != null && !v.trip.end.photoId)));
   const fixRows: Node[] = [];
+  // Viajes que otra persona me ha apuntado o en los que me ha puesto de acompañante.
+  for (const v of ledger.trips.filter((x) => needsConfirmation(x.trip, me.email)).slice(-4).reverse()) {
+    const t = v.trip;
+    const by = memberOf(st, t.addedBy && t.driver === me.email ? t.addedBy : t.driver).name;
+    const n = riders(t).length;
+    fixRows.push(
+      h(
+        'li',
+        { class: 'fix-row' },
+        h('span', { class: 'fix-ic warn', 'aria-hidden': 'true' }, icon('users', 16)),
+        h(
+          'span',
+          null,
+          h('b', null, t.driver === me.email ? `${by} te ha apuntado un viaje` : `${by} te ha puesto en su viaje`),
+          h('span', { class: 'small muted' }, ` ${dayMonth(t.date)} · ${fmtKm(v.km)}${n > 1 ? ` entre ${n}` : ''}. ¿Es correcto?`),
+        ),
+        h('span', { class: 'fix-actions' }, ...confirmActions(st, v)),
+      ),
+    );
+  }
   if (gaps.length)
     fixRows.push(
       h(
@@ -173,6 +193,21 @@ export function homeView(st: AppState): Node {
         h('span', { class: 'fix-ic warn', 'aria-hidden': 'true' }, icon('route', 16)),
         h('span', null, h('b', null, `${fmtKm(gapKm)} sin apuntar`), h('span', { class: 'small muted' }, ` en ${gaps.length} ${gaps.length === 1 ? 'hueco' : 'huecos'}. ¿Fuiste tú?`)),
         h('a', { class: 'btn sm', href: '#/viajes' }, 'Revisar'),
+      ),
+    );
+  for (const r of suspiciousRefuels(st).slice(-2).reverse())
+    fixRows.push(
+      h(
+        'li',
+        { class: 'fix-row' },
+        h('span', { class: 'fix-ic warn', 'aria-hidden': 'true' }, icon('fuel', 16)),
+        h(
+          'span',
+          null,
+          h('b', null, `Puede faltar un repostaje antes del ${dayMonth(r.refuel.date)}`),
+          h('span', { class: 'small muted' }, ` ${fmtKm(r.toKm - r.fromKm)} con un solo depósito de ${Math.round(r.litersMilli / 1000)} l. ¿Llenaste tú y no lo apuntaste?`),
+        ),
+        h('a', { class: 'btn sm', href: '#/repostajes/nuevo' }, 'Apuntar'),
       ),
     );
   for (const v of missing.slice(-3).reverse())

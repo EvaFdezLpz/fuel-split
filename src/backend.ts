@@ -28,6 +28,8 @@ export interface TripInput {
   endKm: number | null;
   endPhotoId: string | null;
   note: string;
+  /** Acompañantes con los que se reparte el viaje. */
+  with?: string[];
 }
 
 export interface RefuelInput {
@@ -59,6 +61,12 @@ export interface Backend {
   signOut(): Promise<void>;
   subscribe(cb: (s: Snapshot) => void, onError: (e: unknown) => void): () => void;
   addTrip(input: TripInput): Promise<void>;
+  /** Apuntar km a nombre de otra persona (que se olvidó): queda pendiente de que lo confirme. */
+  addTripFor(driver: string, input: TripInput): Promise<void>;
+  /** «Es correcto»: quien fue apuntado por otro o añadido como acompañante lo confirma. */
+  confirmTrip(id: string): Promise<void>;
+  /** «No iba»: un acompañante se quita del viaje. */
+  leaveTrip(id: string): Promise<void>;
   updateTrip(id: string, input: TripInput): Promise<void>;
   deleteTrip(id: string): Promise<void>;
   addRefuel(input: RefuelInput): Promise<void>;

@@ -1,8 +1,9 @@
+import { findGaps } from './gaps';
 import { h } from '../dom';
-import { MAX_TRIP_KM, fmtKm, lastKnownReading } from '../domain';
+import { MAX_TRIP_KM, fmtKm, fmtKmShare, lastKnownReading } from '../domain';
 import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
-import { busy, errorText, pageHead, toast } from '../ui';
+import { busy, dayMonth, errorText, pageHead, toast } from '../ui';
 import { readingField } from './reading';
 
 function localInputValue(ms: number): string {
@@ -12,9 +13,42 @@ function localInputValue(ms: number): string {
 }
 
 /** Viaje olvidado: km y fecha propuestos desde «Km sin apuntar». Se usa una sola vez. */
-let preset: { startKm: number; endKm: number; date: number } | null = null;
-export function presetTrip(p: { startKm: number; endKm: number; date: number }) {
+interface Preset {
+  startKm: number;
+  endKm: number;
+  date: number;
+  /** «Fue otro»: quien apunta no era quien conducía. */
+  other?: boolean;
+}
+let preset: Preset | null = null;
+export function presetTrip(p: Preset) {
   preset = p;
+}
+
+/** Botones de personas (uno o varios elegidos). */
+function peoplePicker(st: AppState, opts: { label: string; multi: boolean; selected: string[]; exclude?: () => string | null; onChange?: () => void }) {
+  let sel = [...opts.selected];
+  const row = h('div', { class: 'who-chips', role: 'group', 'aria-label': opts.label });
+  const draw = () => {
+    const ex = opts.exclude?.() ?? null;
+    sel = sel.filter((e) => e !== ex);
+    row.replaceChildren(
+      ...[...st.members.values()]
+        .filter((m) => m.email !== ex)
+        .map((m) => {
+          const on = sel.includes(m.email);
+          const b = h('button', { type: 'button', class: 'who-chip', 'aria-pressed': String(on) }, on ? icon('check', 15) : null, m.email === st.me.email ? `${m.name} (yo)` : m.name);
+          b.addEventListener('click', () => {
+            sel = opts.multi ? (on ? sel.filter((e) => e !== m.email) : [...sel, m.email]) : [m.email];
+            draw();
+            opts.onChange?.();
+          });
+          return b;
+        }),
+    );
+  };
+  draw();
+  return { el: h('div', { class: 'field' }, h('span', { class: 'label' }, opts.label), row), get: () => sel, redraw: draw };
 }
 
 /** Pasada una semana, un viaje terminado ya no se corrige: solo se le puede añadir la foto que falte. */
@@ -26,6 +60,14 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     return h('div', { class: 'stack' }, pageHead('Viaje no disponible', 'Solo puedes modificar tus propios viajes.'), h('a', { class: 'btn', href: '#/viajes' }, 'Volver a viajes'));
   }
   const t = existing?.trip;
+  if (t?.addedBy && t.addedBy !== st.me.email) {
+    return h(
+      'div',
+      { class: 'stack' },
+      pageHead('Viaje apuntado por otra persona', `Lo apuntó ${memberOf(st, t.addedBy).name}. Si es correcto, confírmalo; si no fuiste tú, bórralo desde el viaje.`),
+      h('a', { class: 'btn', href: '#/viajes' }, 'Volver a viajes'),
+    );
+  }
   const p = !t ? preset : null;
   preset = null;
   const photoOnly = !!t && t.end.km != null && Date.now() > t.createdAt + EDIT_WINDOW;
@@ -60,6 +102,24 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     for (const el of [date, start.input, end.input, note]) el.disabled = true;
     for (const r of [start, end]) if (r.photo.existingId()) (r.el.querySelector('.photo-menu-wrap') as HTMLElement | null)?.setAttribute('hidden', '');
   }
+  // Quién conducía: solo al apuntar km olvidados («Fui yo» / «Fue otro»). Un viaje normal es siempre tuyo.
+  const driverPick = p ? peoplePicker(st, { label: '¿Quién conducía?', multi: false, selected: p.other ? [] : [st.me.email], onChange: () => ((formErr.textContent = ''), withPick.redraw(), syncDriver(), refresh()) }) : null;
+  const driver = () => (driverPick ? (driverPick.get()[0] ?? null) : (t?.driver ?? st.me.email));
+  const withPick = peoplePicker(st, {
+    label: '¿Iba alguien más? (opcional)',
+    multi: true,
+    selected: t?.with ?? [],
+    exclude: driver,
+    onChange: () => refresh(),
+  });
+  const withHint = h('p', { class: 'hint' }, 'Si ibais varios en el mismo viaje, marca quiénes: los km se reparten a partes iguales. Cada uno lo verá y podrá confirmarlo.');
+  const otherNote = h('p', { class: 'notice', hidden: true }, icon('info'), h('span', null, 'Lo apuntas por otra persona: verá el aviso y podrá confirmarlo o borrarlo. Las fotos solo las añade quien conducía.'));
+  const syncDriver = () => {
+    const other = driver() != null && driver() !== st.me.email;
+    otherNote.hidden = !other;
+    for (const r of [start, end]) (r.el.querySelector('.photo-pick') as HTMLElement | null)?.toggleAttribute('hidden', other);
+  };
+  if (photoOnly) withPick.el.setAttribute('hidden', '');
   const summary = h('div', { class: 'calc', 'aria-live': 'polite' });
   const formErr = h('div', { class: 'error', role: 'alert' });
 
@@ -67,25 +127,44 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     const a = start.km();
     const b = end.km();
     const lines: Node[] = [];
-    if (a != null && !Number.isNaN(a) && b != null && !Number.isNaN(b) && b >= a) lines.push(h('div', null, 'Recorrido: ', h('b', { class: 'num' }, fmtKm(b - a))));
+    const n = 1 + withPick.get().length;
+    if (a != null && !Number.isNaN(a) && b != null && !Number.isNaN(b) && b >= a)
+      lines.push(h('div', null, 'Recorrido: ', h('b', { class: 'num' }, fmtKm(b - a)), n > 1 ? ` · ${fmtKmShare((b - a) / n)} para cada uno de los ${n}` : ''));
     else lines.push(h('div', { class: 'muted' }, 'El recorrido se calcula con las dos lecturas.'));
     if (!t && !p && last && a != null && !Number.isNaN(a) && a !== last.km) {
       const diff = a - last.km;
-      lines.push(h('div', { class: 'small' }, diff > 0 ? `Hay ${fmtKm(diff)} desde el último registro que nadie ha apuntado; quedará marcado como hueco.` : `Empiezas ${fmtKm(-diff)} por debajo del último registro. Revisa la cifra.`));
+      if (diff > 0) lines.push(h('div', { class: 'small' }, `Hay ${fmtKm(diff)} desde el último registro que nadie ha apuntado; quedará marcado como hueco.`));
+      else {
+        // Km por debajo del último registro: o es un viaje olvidado (cae en un hueco) o la cifra está mal.
+        const gap = findGaps(st).find((g) => a >= g.fromKm && a < g.toKm);
+        const inside = st.ledger.trips.find((v) => v.trip.start.km != null && v.endKm != null && a >= v.trip.start.km && a < v.endKm);
+        lines.push(
+          gap
+            ? h('div', { class: 'small' }, h('b', null, 'Viaje olvidado: '), `encaja en los km sin apuntar ${fmtKm(gap.fromKm)} → ${fmtKm(gap.toKm)}. Pon la fecha y la hora en que fuiste.`)
+            : inside
+              ? h('div', { class: 'error' }, `Ese km ya está dentro del viaje de ${memberOf(st, inside.trip.driver).name} del ${dayMonth(inside.trip.date)}. Revisa la cifra.`)
+              : h('div', { class: 'small' }, `Empiezas ${fmtKm(-diff)} por debajo del último registro. Revisa la cifra.`),
+        );
+      }
     }
     summary.replaceChildren(...lines);
   };
   start.input.addEventListener('input', refresh);
   end.input.addEventListener('input', refresh);
   refresh();
+  syncDriver();
 
   const save = h('button', { class: 'btn primary', type: 'submit' }, icon('check'), isFinishing ? 'Terminar viaje' : photoOnly ? 'Guardar foto' : t ? 'Guardar cambios' : 'Guardar viaje');
   const form = h(
     'form',
     { class: 'form', novalidate: true },
+    driverPick?.el ?? null,
+    otherNote,
     h('div', { class: 'field' }, h('label', { for: 'trip-date' }, 'Fecha y hora de salida'), date),
     start.el,
     end.el,
+    withPick.el,
+    photoOnly ? null : withHint,
     summary,
     h('div', { class: 'field' }, h('label', { for: 'trip-note' }, 'Nota'), note),
     formErr,
@@ -100,7 +179,17 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     const a = start.km();
     const b = end.km();
     const when = new Date(date.value).getTime();
+    const who = driver();
+    const forOther = who !== st.me.email;
     let ok = true;
+    if (!who) {
+      formErr.textContent = 'Elige quién conducía.';
+      return;
+    }
+    if (forOther && b == null) {
+      end.setError('Pon el km final: el viaje es de otra persona y no lo podrá terminar ella.');
+      ok = false;
+    }
     if (a == null || Number.isNaN(a)) {
       start.setError('Escribe el km inicial (solo números).');
       ok = false;
@@ -135,17 +224,29 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
       formErr.textContent = 'Añade al menos una foto: es lo único que se puede cambiar en un viaje de hace más de una semana.';
       return;
     }
-    if (!p && !photoOnly && !start.photo.pending() && !start.photo.existingId() && !confirm('No has añadido foto del km inicial. Quedará marcado como "sin foto". ¿Guardar igualmente?')) return;
+    if (!p && !photoOnly && !forOther && !start.photo.pending() && !start.photo.existingId() && !confirm('No has añadido foto del km inicial. Quedará marcado como "sin foto". ¿Guardar igualmente?')) return;
     busy(save, true);
     try {
-      const sp = start.photo.pending();
-      const ep = end.photo.pending();
+      const sp = forOther ? null : start.photo.pending();
+      const ep = forOther ? null : end.photo.pending();
       const startPhotoId = sp ? await st.backend.addEvidence('odometer', sp) : start.photo.existingId();
       const endPhotoId = b == null ? null : ep ? await st.backend.addEvidence('odometer', ep) : end.photo.existingId();
-      const input = { date: when, startKm: a!, startPhotoId, endKm: b, endPhotoId, note: note.value.trim().slice(0, 280) };
+      const withList = withPick.get();
+      const sameWith = !!t && [...(t.with ?? [])].sort().join() === [...withList].sort().join();
+      const input = {
+        date: when,
+        startKm: a!,
+        startPhotoId: forOther ? null : startPhotoId,
+        endKm: b,
+        endPhotoId: forOther ? null : endPhotoId,
+        note: note.value.trim().slice(0, 280),
+        // Al añadir solo una foto o si no cambian los acompañantes, no se toca la lista.
+        with: photoOnly || sameWith ? undefined : withList,
+      };
       if (t) await st.backend.updateTrip(t.id, input);
+      else if (forOther) await st.backend.addTripFor(who, input);
       else await st.backend.addTrip(input);
-      toast(b == null ? 'Viaje empezado. Complétalo al aparcar.' : 'Viaje guardado');
+      toast(forOther ? `Viaje apuntado a ${memberOf(st, who).name}. Le saldrá para confirmarlo.` : b == null ? 'Viaje empezado. Complétalo al aparcar.' : 'Viaje guardado');
       location.hash = '#/viajes';
     } catch (e) {
       busy(save, false);

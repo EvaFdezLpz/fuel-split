@@ -43,12 +43,14 @@ Para añadir o quitar personas, edita `members.json` y vuelve a ejecutar `npm ru
 
 ## Si alguien se olvida de apuntar
 
-- **Km sin apuntar**: en Viajes (y avisado en el Resumen) salen los huecos entre un viaje y el siguiente. Quien usó el coche pulsa **Fui yo** y guarda el viaje con los km del hueco ya puestos (con foto si la tiene). Si nadie los reclama, se reparten según los km de cada uno.
+- **Km sin apuntar**: en Viajes (y avisado en el Resumen) salen los huecos entre un viaje y el siguiente. Quien usó el coche pulsa **Fui yo** y guarda el viaje con los km del hueco ya puestos (con foto si la tiene). Si fue otra persona (o fueron varias juntas), cualquiera pulsa **Fue otro**, elige quién conducía y quién iba: a esa persona le sale en el Resumen para pulsar **Es correcto** o **No fui yo** (que lo borra). Si nadie los reclama, se reparten según los km de cada uno.
+- **Viajes juntos**: al apuntar un viaje se puede marcar **¿Iba alguien más?**. Los km se reparten a partes iguales entre todos los que iban. Cada acompañante lo ve en su Resumen y puede confirmarlo o pulsar **No iba**, y su parte vuelve a los demás.
 - **Foto olvidada**: cada uno puede añadir la foto que falte a sus viajes en cualquier momento. Pasada una semana solo se puede añadir la foto; los km y la fecha ya no se cambian.
+- **Repostaje sin apuntar**: si en un tramo salen muy pocos litros para los km (menos de 4 l/100 km), el Resumen avisa de que puede faltar un repostaje. Quien llenó lo apunta en Repostar con los km de ese día: la app lo reconoce como repostaje olvidado, pide la fecha real y lo coloca entre los depósitos de alrededor.
 - **Ajustes**: si un viaje o repostaje apuntado tarde cambia un reparto que ya estaba pagado, la app calcula la diferencia y la pide (o la devuelve quien llenó el depósito) con un **Bizum de ajuste**, que se confirma igual que los demás.
 
 ## Cómo se calcula
 
 - Cada repostaje paga los km entre el repostaje anterior y este. A cada persona le toca `importe × sus km / km registrados del tramo`, en céntimos exactos (lo que sobra por redondeo se asigna con el método del mayor resto).
-- Km que nadie registró en el tramo (huecos) no se cobran a nadie y se avisan.
+- Km que nadie registró en el tramo (huecos) se avisan y, si nadie los reclama con «Fui yo», se reparten entre quienes sí tienen km en ese tramo, en proporción a sus km (el importe del depósito se reparte siempre entero).
 - Estados de evidencia: **Foto**, **Cuadra** (sin foto pero coincide con otra lectura con foto), **Sin foto**, **Inferido** (tomado del siguiente viaje) y **En curso**.

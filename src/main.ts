@@ -8,6 +8,11 @@ installTrustedTypes();
 applyTheme();
 applyRail();
 
+// Service worker: necesario para que Android ofrezca «Instalar app» y la abra sin barras del navegador.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}));
+}
+
 async function pickBackend(): Promise<Backend> {
   // El modo demo solo existe en desarrollo (o en un build de demostración explícito): nunca en producción.
   if ((import.meta.env.DEV || import.meta.env.VITE_DEMO === '1') && new URLSearchParams(location.search).has('demo')) {

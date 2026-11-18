@@ -23,6 +23,9 @@ const trip = (driver: string, over: Record<string, unknown> = {}) => ({
   note: '',
   createdAt: serverTimestamp(),
   updatedAt: serverTimestamp(),
+  with: [],
+  addedBy: null,
+  confirmed: [],
   ...over,
 });
 
@@ -109,6 +112,62 @@ describe('viajes', () => {
     await assertFails(deleteDoc(doc(as(LUIS), 'trips', 't1')));
     await assertSucceeds(updateDoc(doc(as(ANA), 'trips', 't1'), { end: { km: 1100, photoId: null }, updatedAt: serverTimestamp() }));
     await assertFails(updateDoc(doc(as(ANA), 'trips', 't1'), { driver: LUIS, updatedAt: serverTimestamp() }));
+  });
+});
+
+describe('viajes compartidos y km apuntados por otra persona', () => {
+  const EVA = 'eva@gmail.com';
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'members', EVA), { name: 'Eva', color: 'c3' }));
+  });
+  it('un viaje propio con acompañantes de la familia', async () => {
+    await assertSucceeds(setDoc(doc(as(ANA), 'trips', 't1'), trip(ANA, { with: [LUIS, EVA] })));
+  });
+  it('acompañantes que no son de la familia, repetidos o el propio conductor: denegado', async () => {
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(ANA, { with: [EVIL] })));
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(ANA, { with: [LUIS, LUIS] })));
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(ANA, { with: [ANA] })));
+  });
+  it('no se puede crear un viaje ya confirmado por otros', async () => {
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(ANA, { with: [LUIS], confirmed: [LUIS] })));
+  });
+  it('apuntar km olvidados a nombre de otro, marcado con quién lo apuntó', async () => {
+    await assertSucceeds(setDoc(doc(as(ANA), 'trips', 't1'), trip(LUIS, { addedBy: ANA })));
+    await assertSucceeds(setDoc(doc(as(ANA), 'trips', 't2'), trip(LUIS, { addedBy: ANA, with: [EVA] })));
+  });
+  it('a nombre de otro: sin ocultar quién lo apuntó, sin fotos ajenas, terminado y a alguien de la familia', async () => {
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(LUIS, { addedBy: LUIS })));
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(LUIS, { addedBy: null })));
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(LUIS, { addedBy: ANA, start: { km: 1000, photoId: id20(2) } })));
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(LUIS, { addedBy: ANA, end: { km: null, photoId: null } })));
+    await assertFails(setDoc(doc(as(ANA), 'trips', 't1'), trip(EVIL, { addedBy: ANA })));
+  });
+  it('quien lo apuntó no puede editarlo; la persona apuntada puede confirmarlo o borrarlo siempre', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) =>
+      setDoc(doc(ctx.firestore(), 'trips', 'olvido'), { ...trip(LUIS, { addedBy: ANA }), createdAt: Timestamp.fromMillis(Date.now() - 864e5 * 30), updatedAt: Timestamp.now() }),
+    );
+    await assertFails(updateDoc(doc(as(ANA), 'trips', 'olvido'), { end: { km: 1200, photoId: null }, updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(as(ANA), 'trips', 'olvido'))); // pasadas 24 h, quien lo apuntó ya no lo borra
+    await assertFails(updateDoc(doc(as(ANA), 'trips', 'olvido'), { confirmed: [ANA], updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(as(LUIS), 'trips', 'olvido'), { end: { km: 1200, photoId: null }, updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(as(LUIS), 'trips', 'olvido'), { confirmed: [LUIS], updatedAt: serverTimestamp() }));
+    await assertSucceeds(deleteDoc(doc(as(LUIS), 'trips', 'olvido')));
+  });
+  it('cada acompañante confirma o se quita solo a sí mismo', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'trips', 'juntos'), { ...trip(ANA, { with: [LUIS, EVA] }), createdAt: Timestamp.now(), updatedAt: Timestamp.now() }));
+    await assertFails(updateDoc(doc(as(LUIS), 'trips', 'juntos'), { confirmed: [LUIS, EVA], updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(as(LUIS), 'trips', 'juntos'), { with: [LUIS], updatedAt: serverTimestamp() })); // quitar a otro
+    await assertFails(updateDoc(doc(as(EVIL), 'trips', 'juntos'), { confirmed: [EVIL], updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(as(LUIS), 'trips', 'juntos'), { confirmed: [LUIS], updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(as(EVA), 'trips', 'juntos'), { with: [LUIS], updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(as(LUIS), 'trips', 'juntos'))); // un acompañante no borra el viaje
+  });
+  it('los viajes guardados antes de este cambio (sin los campos nuevos) se siguen editando', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const { with: _w, addedBy: _a, confirmed: _c, ...old } = trip(ANA, { end: { km: null, photoId: null } });
+      await setDoc(doc(ctx.firestore(), 'trips', 'antiguo'), { ...old, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
+    });
+    await assertSucceeds(updateDoc(doc(as(ANA), 'trips', 'antiguo'), { end: { km: 1100, photoId: null }, updatedAt: serverTimestamp() }));
   });
 });
 

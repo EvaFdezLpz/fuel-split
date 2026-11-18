@@ -92,23 +92,69 @@ service cloud.firestore {
     }
 
     // ---------- Viajes ----------
+    // Campos: conductor, fecha, lecturas, nota, fechas de servidor y, para viajes compartidos o apuntados
+    // por otra persona: with (acompañantes), addedBy (quién lo apuntó) y confirmed (quién lo ha confirmado).
+    function tripKeysNew() {
+      return exactKeys(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed']);
+    }
+    // Acompañantes: hasta 4 personas de la lista blanca, sin repetir y sin el conductor.
+    function people(list, driver) {
+      return list is list
+        && list.size() <= 4
+        && list.toSet().size() == list.size()
+        && !(driver in list)
+        && (list.size() < 1 || exists(memberPath(list[0])))
+        && (list.size() < 2 || exists(memberPath(list[1])))
+        && (list.size() < 3 || exists(memberPath(list[2])))
+        && (list.size() < 4 || exists(memberPath(list[3])));
+    }
+    function isRider(t) {
+      return t.driver == me() || me() in t.get('with', []);
+    }
+
     match /trips/{id} {
       allow read: if isMember();
 
+      // Un viaje propio (solo o con acompañantes).
       allow create: if isMember()
-        && exactKeys(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt'])
+        && tripKeysNew()
         && data().driver == me()
+        && data().addedBy == null
+        && data().confirmed == []
+        && people(data().with, me())
         && data().createdAt == request.time
         && validTrip()
         && ownEvidence(data().start.photoId)
         && ownEvidence(data().end.photoId);
 
-      // Solo el conductor. Puede terminar un viaje abierto cuando quiera; corregir, durante 7 días.
+      // Km que alguien se olvidó de apuntar, a nombre de otra persona: sin fotos (no son suyas),
+      // terminado, y marcado con quién lo apuntó. La persona lo verá y podrá confirmarlo o borrarlo.
+      allow create: if isMember()
+        && tripKeysNew()
+        && data().addedBy == me()
+        && data().driver is string
+        && data().driver != me()
+        && exists(memberPath(data().driver))
+        && data().confirmed == []
+        && people(data().with, data().driver)
+        && data().createdAt == request.time
+        && validTrip()
+        && data().end.km != null
+        && data().start.photoId == null
+        && data().end.photoId == null;
+
+      // El conductor corrige su propio viaje (no uno que le apuntó otro). Puede terminar un viaje abierto
+      // cuando quiera; corregir, durante 7 días. Quién lo apuntó y quién lo confirmó no cambian.
       allow update: if isMember()
         && resource.data.driver == me()
-        && exactKeys(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt'])
+        && resource.data.get('addedBy', null) == null
+        && data().keys().hasAll(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt'])
+        && data().keys().hasOnly(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed'])
         && data().driver == resource.data.driver
         && data().createdAt == resource.data.createdAt
+        && data().get('addedBy', null) == null
+        && data().get('confirmed', []) == resource.data.get('confirmed', [])
+        && people(data().get('with', []), me())
         && validTrip()
         && (resource.data.end.km == null || request.time < resource.data.createdAt + duration.value(7, 'd'))
         && (data().start.photoId == resource.data.start.photoId || ownEvidence(data().start.photoId))
@@ -129,9 +175,27 @@ service cloud.firestore {
         && (data().end.photoId == resource.data.end.photoId
             || (resource.data.end.photoId == null && data().end.photoId != null && ownEvidence(data().end.photoId)));
 
+      // «Es correcto»: quien iba en el viaje se añade a sí mismo (y solo a sí mismo) a los que confirman.
+      allow update: if isMember()
+        && isRider(resource.data)
+        && !(me() in resource.data.get('confirmed', []))
+        && data().diff(resource.data).affectedKeys().hasOnly(['confirmed', 'updatedAt'])
+        && data().updatedAt == request.time
+        && data().confirmed == resource.data.get('confirmed', []).concat([me()]);
+
+      // «No iba»: un acompañante se quita a sí mismo (y solo a sí mismo) del viaje.
+      allow update: if isMember()
+        && me() in resource.data.get('with', [])
+        && data().diff(resource.data).affectedKeys().hasOnly(['with', 'updatedAt'])
+        && data().updatedAt == request.time
+        && data().with == resource.data.with.removeAll([me()]);
+
+      // Borrar: el conductor, en las primeras 24 h; quien lo apuntó para otro, también en 24 h;
+      // y la persona a la que se lo apuntaron, siempre («No fui yo»).
       allow delete: if isMember()
-        && resource.data.driver == me()
-        && request.time < resource.data.createdAt + duration.value(24, 'h');
+        && ((resource.data.driver == me() && request.time < resource.data.createdAt + duration.value(24, 'h'))
+            || (resource.data.get('addedBy', null) == me() && request.time < resource.data.createdAt + duration.value(24, 'h'))
+            || (resource.data.driver == me() && resource.data.get('addedBy', null) != null && resource.data.get('addedBy', null) != me()));
     }
 
     // ---------- Repostajes ----------

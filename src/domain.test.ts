@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adjustPaymentId, balanceFor, buildLedger, paymentId, splitCents, type Payment, type Refuel, type Trip } from './domain';
+import { adjustPaymentId, needsConfirmation, balanceFor, buildLedger, paymentId, splitCents, type Payment, type Refuel, type Trip } from './domain';
 
 let n = 0;
 const trip = (driver: string, s: number, e: number | null, opts: Partial<{ sp: boolean; ep: boolean }> = {}): Trip => ({
@@ -203,5 +203,63 @@ describe('ajustes: nadie puede inflar lo que dice haber pagado', () => {
     const l = buildLedger([...trips, trip('t3', 'luis', 400, 600)], [{ ...refuel, odometerKm: 600 }], [share(3000, 'confirmed'), adj('luis', 'ana', 1000, 'sent')]);
     // Ahora Luis: 400 de 600 km → 4000; pagó 3000 y ha enviado 1000 de ajuste: no queda nada pendiente.
     expect(l.debts.filter((d) => d.kind === 'adjust' && d.state === 'pending')).toHaveLength(0);
+  });
+});
+
+describe('repostaje que se olvidó apuntar', () => {
+  const trip = (id: string, driver: string, a: number, b: number): Trip => ({ id, driver, date: a, start: { km: a, photoId: 'p' }, end: { km: b, photoId: 'p' }, note: '', createdAt: a });
+  const refuel = (id: string, payer: string, km: number, cents: number, date: number): Refuel => ({ id, payer, date, amountCents: cents, priceMilli: 1500, odometerKm: km, odometerPhotoId: 'p', receiptPhotoId: 'p', note: '', createdAt: date });
+  // Luis hace 0→400 y Ana 400→800. Luis llenó a los 400 km pero no lo apuntó; Ana llenó a los 800 y lo apuntó.
+  const trips = [trip('t1', 'luis', 0, 400), trip('t2', 'ana', 400, 800)];
+  const ana = refuel('rA', 'ana', 800, 6000, 2000);
+
+  it('sin apuntarlo, Luis paga la mitad del depósito de Ana aunque ya llenó él', () => {
+    const l = buildLedger(trips, [ana], []);
+    expect(l.debts.find((d) => d.debtor === 'luis')?.cents).toBe(3000);
+  });
+
+  it('al apuntarlo tarde, cada tramo se paga con su depósito y el Bizum ya hecho se devuelve con un ajuste', () => {
+    const paid: Payment = { id: paymentId('rA', 'luis'), refuelId: 'rA', debtor: 'luis', creditor: 'ana', amountCents: 3000, status: 'confirmed', sentAt: 1, confirmedAt: 2 };
+    const l = buildLedger(trips, [ana, refuel('rL', 'luis', 400, 6000, 1000)], [paid]);
+    // El tramo 0→400 lo pagó Luis y solo lo usó él; el 400→800 solo Ana: nadie debe nada a nadie...
+    expect(l.debts.filter((d) => d.kind === 'share' && d.cents > 0)).toHaveLength(0);
+    // ...y los 30 € que Luis ya mandó a Ana vuelven con un ajuste.
+    const adj = l.debts.filter((d) => d.kind === 'adjust' && d.state === 'pending');
+    expect(adj).toHaveLength(1);
+    expect(adj[0]).toMatchObject({ debtor: 'ana', creditor: 'luis', dueCents: 3000 });
+  });
+});
+
+describe('viajes compartidos', () => {
+  const refuel: Refuel = { id: 'r1', payer: 'ana', date: 500, amountCents: 6000, priceMilli: 1500, odometerKm: 300, odometerPhotoId: 'p', receiptPhotoId: 'p', note: '', createdAt: 500 };
+  const t = (id: string, driver: string, a: number, b: number, extra: Partial<Trip> = {}): Trip => ({ id, driver, date: a, start: { km: a, photoId: 'p' }, end: { km: b, photoId: 'p' }, note: '', createdAt: a, ...extra });
+
+  it('los km de un viaje juntos se pagan a partes iguales', () => {
+    // Ana 100 km sola; Luis y Eva 200 km juntos → 100 km cada uno: 20 € para cada uno.
+    const l = buildLedger([t('t1', 'ana', 0, 100), t('t2', 'luis', 100, 300, { with: ['eva'] })], [refuel], []);
+    const s = Object.fromEntries(l.refuels[0].shares.map((x) => [x.email, x.cents]));
+    expect(s).toEqual({ ana: 2000, luis: 2000, eva: 2000 });
+    expect(l.debts.map((d) => [d.debtor, d.cents]).sort()).toEqual([['eva', 2000], ['luis', 2000]]);
+  });
+
+  it('el reparto suma siempre el importe exacto aunque no salga redondo', () => {
+    const l = buildLedger([t('t1', 'ana', 0, 100, { with: ['luis', 'eva'] }), t('t2', 'mar', 100, 300)], [{ ...refuel, amountCents: 6001 }], []);
+    expect(l.refuels[0].shares.reduce((a, x) => a + x.cents, 0)).toBe(6001);
+  });
+
+  it('si un acompañante dice que no iba, su parte vuelve a los demás', () => {
+    const l = buildLedger([t('t1', 'ana', 0, 300, { with: [] })], [refuel], []);
+    expect(l.debts).toHaveLength(0);
+  });
+});
+
+describe('quién tiene que confirmar un viaje', () => {
+  const base: Trip = { id: 't', driver: 'ana', date: 1, start: { km: 0, photoId: null }, end: { km: 10, photoId: null }, note: '', createdAt: 1 };
+  it('acompañantes y la persona a la que otro le apuntó el viaje; no quien lo apuntó', () => {
+    expect(needsConfirmation({ ...base, with: ['luis'] }, 'luis')).toBe(true);
+    expect(needsConfirmation({ ...base, with: ['luis'] }, 'ana')).toBe(false);
+    expect(needsConfirmation({ ...base, addedBy: 'eva' }, 'ana')).toBe(true);
+    expect(needsConfirmation({ ...base, addedBy: 'eva', with: ['eva'] }, 'eva')).toBe(false);
+    expect(needsConfirmation({ ...base, with: ['luis'], confirmed: ['luis'] }, 'luis')).toBe(false);
   });
 });

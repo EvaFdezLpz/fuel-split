@@ -17,6 +17,8 @@ import {
   doc,
   getDoc,
   initializeFirestore,
+  arrayUnion,
+  arrayRemove,
   terminate,
   clearIndexedDbPersistence,
   onSnapshot,
@@ -68,7 +70,19 @@ function parseTrip(id: string, d: DocumentData): Trip | null {
   const date = ms(d.date);
   const createdAt = ms(d.createdAt) ?? Date.now(); // pendiente de escritura local
   if (!start || !end || date === undefined || !isStr(d.driver) || start.km == null) return null;
-  return { id, driver: d.driver, date, start, end, note: isStr(d.note, 280) ? d.note : '', createdAt };
+  const emails = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => isStr(x)).slice(0, 4) : []);
+  return {
+    id,
+    driver: d.driver,
+    date,
+    start,
+    end,
+    note: isStr(d.note, 280) ? d.note : '',
+    createdAt,
+    with: emails(d.with).filter((e) => e !== d.driver),
+    addedBy: isStr(d.addedBy) ? d.addedBy : null,
+    confirmed: emails(d.confirmed),
+  };
 }
 
 function parseRefuel(id: string, d: DocumentData): Refuel | null {
@@ -184,6 +198,13 @@ export function createFirebaseBackend(): Backend {
 
     async signIn() {
       await setPersistence(auth, browserLocalPersistence);
+      // App instalada (pantalla de inicio): una ventana emergente se abriría fuera de la app y no volvería.
+      // La redirección se queda dentro, porque el dominio de acceso es el mismo que el de la app.
+      const installed = matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      if (installed) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
       try {
         await signInWithPopup(auth, provider);
       } catch (e) {
@@ -243,11 +264,24 @@ export function createFirebaseBackend(): Backend {
     },
 
     async addTrip(input) {
-      await settle(setDoc(tripRef(), { ...tripData(input), driver: me, createdAt: serverTimestamp() }));
+      await settle(setDoc(tripRef(), { ...tripData(input), driver: me, createdAt: serverTimestamp(), with: input.with ?? [], addedBy: null, confirmed: [] }));
+    },
+
+    async addTripFor(driver, input) {
+      await settle(setDoc(tripRef(), { ...tripData(input), driver, createdAt: serverTimestamp(), with: input.with ?? [], addedBy: me, confirmed: [] }));
     },
 
     async updateTrip(id, input) {
-      await settle(updateDoc(tripRef(id), tripData(input)));
+      // «with» solo se escribe si se ha cambiado (así añadir una foto no toca nada más).
+      await settle(updateDoc(tripRef(id), { ...tripData(input), ...(input.with ? { with: input.with } : {}) }));
+    },
+
+    async confirmTrip(id) {
+      await settle(updateDoc(tripRef(id), { confirmed: arrayUnion(me), updatedAt: serverTimestamp() }));
+    },
+
+    async leaveTrip(id) {
+      await settle(updateDoc(tripRef(id), { with: arrayRemove(me), updatedAt: serverTimestamp() }));
     },
 
     async deleteTrip(id) {

@@ -1,7 +1,7 @@
 // Km sin apuntar: huecos entre un viaje y el siguiente. Quien usó el coche y se olvidó de apuntarlo
 // pulsa «Fui yo» y añade el viaje con los km ya rellenos. Si nadie los reclama, se reparten según los km de cada uno.
 import { h } from '../dom';
-import { fmtKm, groupThousands, type TripView } from '../domain';
+import { fmtKm, groupThousands, type RefuelView, type TripView } from '../domain';
 import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
 import { dayMonth } from '../ui';
@@ -29,10 +29,10 @@ export function findGaps(st: AppState): Gap[] {
 }
 
 /** Abre el formulario de viaje con los km del hueco ya puestos. */
-export function claimGap(g: Gap) {
+export function claimGap(g: Gap, other = false) {
   const a = g.after.trip.date;
   const b = g.before.trip.date;
-  presetTrip({ startKm: g.fromKm, endKm: g.toKm, date: b > a ? Math.round(a + (b - a) / 2) : a + 3_600_000 });
+  presetTrip({ startKm: g.fromKm, endKm: g.toKm, date: b > a ? Math.round(a + (b - a) / 2) : a + 3_600_000, other });
   location.hash = '#/viajes/nuevo';
 }
 
@@ -53,14 +53,19 @@ export function gapsBlock(st: AppState, rerender: () => void): HTMLElement | nul
       { class: 'gaps-intro small muted' },
       'Alguien usó el coche y no lo apuntó. Si fuiste tú, pulsa ',
       h('b', null, 'Fui yo'),
-      ' y guarda el viaje (con foto si la tienes). Si nadie los reclama, se reparten entre todos según sus km. Si el depósito ya estaba pagado, la app calcula el ajuste.',
+      '. Si sabes quién fue (o fuisteis varios), pulsa ',
+      h('b', null, 'Fue otro'),
+      ' y elige: le saldrá para confirmarlo. Si nadie los reclama, se reparten entre todos según sus km. Si el depósito ya estaba pagado, la app calcula el ajuste.',
     ),
     h(
       'ul',
       { class: 'gap-list' },
       slice.map((g) => {
-        const b = h('button', { class: 'btn sm', type: 'button' }, icon('user', 14), 'Fui yo');
-        b.addEventListener('click', () => claimGap(g));
+        const mine = h('button', { class: 'btn sm', type: 'button' }, icon('user', 14), 'Fui yo');
+        mine.addEventListener('click', () => claimGap(g));
+        const other = h('button', { class: 'btn ghost sm', type: 'button' }, icon('users', 14), 'Fue otro');
+        other.addEventListener('click', () => claimGap(g, true));
+        const b = h('div', { class: 'gap-actions' }, mine, other);
         return h(
           'li',
           { class: 'gap-row' },
@@ -77,4 +82,16 @@ export function gapsBlock(st: AppState, rerender: () => void): HTMLElement | nul
     ),
     pager({ page: paging.page, pages, total: gaps.length, perPage: 5, noun: ['Hueco', 'Huecos'], prev: 'Más recientes', next: 'Más antiguos', go: (n) => ((paging.page = n), rerender()), anchor: '#km-sin-apuntar' }),
   );
+}
+
+/**
+ * Repostajes que probablemente faltan: un tramo con muy pocos litros para sus km. Un C3 de 2005
+ * gasta unos 6-7 l/100 km; por debajo de 4 l/100 km no cuadra, así que alguien llenó sin apuntarlo
+ * (y esos km se están cobrando con un solo depósito).
+ */
+export function suspiciousRefuels(st: AppState): RefuelView[] {
+  return st.ledger.refuels.filter((r) => {
+    const km = r.toKm - r.fromKm;
+    return km >= 300 && r.litersMilli > 0 && (r.litersMilli / 1000 / km) * 100 < 4;
+  });
 }

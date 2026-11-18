@@ -3203,6 +3203,7 @@ details.more .more-body {
   gap: 14px;
 }
 .person-card {
+  min-width: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
   border: 1px solid var(--line);
@@ -3243,6 +3244,16 @@ table.mini td {
 }
 table.mini .r {
   text-align: right;
+}
+/* Columnas más juntas por dentro (los bordes de la tarjeta conservan su margen): así la tabla
+   cabe en tarjetas estrechas aunque haya una lectura «En curso» o iconos en la fila. */
+table.mini th:not(:first-child),
+table.mini td:not(:first-child) {
+  padding-left: 8px;
+}
+table.mini th:not(:last-child),
+table.mini td:not(:last-child) {
+  padding-right: 8px;
 }
 table.mini tbody tr {
   cursor: pointer;
@@ -4327,6 +4338,131 @@ html {
   }
   ::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* ---------- Repostaje apuntado tarde ---------- */
+.late-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.late-note > .icon {
+  color: var(--warn);
+  margin-top: 2px;
+}
+
+/* ---------- Viajes compartidos / quién conducía ---------- */
+.who-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.who-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 88px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 540;
+  cursor: pointer;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+.who-chip:hover {
+  border-color: var(--ink-3, var(--ink-2));
+  color: var(--ink);
+}
+.who-chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+}
+.who-chip .icon {
+  flex: none;
+}
+.who-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.with-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Iconos de la fila (falta foto, viaje compartido, apuntado por otro): si no caben, bajan de línea. */
+.odo-cell .row-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 5px;
+  white-space: nowrap;
+  vertical-align: -2px;
+}
+.odo-cell .row-marks .doubt {
+  margin-left: 0;
+}
+.with-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--ink-2);
+  font-size: 0.78rem;
+}
+.photo-pick[hidden] {
+  display: none;
+}
+/* Dos botones (confirmar / rechazar): debajo del texto, para que este no se estreche. */
+.fix-row:has(.fix-actions) {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.fix-row .fix-actions {
+  grid-column: 2;
+  justify-content: flex-start;
+}
+.gap-actions,
+.fix-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ---------- App instalada (abierta desde la pantalla de inicio) ---------- */
+@media (display-mode: standalone) {
+  html,
+  body {
+    /* Sin el rebote ni el «tirar para recargar» del navegador. */
+    overscroll-behavior: none;
+  }
+  /* La interfaz no se selecciona ni abre el menú de copiar al mantener pulsado, como en una app.
+     Los textos que se escriben (campos) sí. */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  img {
+    -webkit-user-drag: none;
   }
 }
 
