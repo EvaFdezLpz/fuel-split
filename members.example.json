@@ -1,0 +1,7 @@
+[
+  { "email": "persona1@gmail.com", "name": "Marta", "color": "c1", "admin": true },
+  { "email": "persona2@gmail.com", "name": "Javier", "color": "c2" },
+  { "email": "persona3@gmail.com", "name": "Lucía", "color": "c3" },
+  { "email": "persona4@gmail.com", "name": "Pablo", "color": "c4" },
+  { "email": "persona5@gmail.com", "name": "Carmen", "color": "c5" }
+]

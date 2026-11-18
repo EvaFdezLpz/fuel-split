@@ -1,0 +1,21 @@
+import { chromium } from 'playwright-core';
+import { readFileSync, writeFileSync } from 'node:fs';
+const b64 = readFileSync('tests/fixtures/c3-odometro-101566.png').toString('base64');
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+const page = await browser.newPage();
+await page.goto('http://localhost:5173/?demo#/');
+const out = await page.evaluate(async (b64) => {
+  const m = await import('/src/odometer-vision.ts');
+  const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+  const s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  const ctx = c.getContext('2d'); ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const lcd = m.findLcd(img);
+  const o = document.createElement('canvas'); o.width = lcd.w * 3; o.height = lcd.h * 3;
+  const octx = o.getContext('2d'); octx.imageSmoothingEnabled = false;
+  octx.drawImage(c, lcd.x, lcd.y, lcd.w, lcd.h, 0, 0, o.width, o.height);
+  return o.toDataURL('image/png');
+}, b64);
+writeFileSync('.impeccable/review/lcd-crop.png', Buffer.from(out.split(',')[1], 'base64'));
+await browser.close();

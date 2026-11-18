@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+members.json
+service-account*.json
+.firebase/
+*-debug.log
+public/ocr/
+.impeccable/review/
+firestore-debug.log
+.impeccable/hook.cache.json
+# Fotos reales (privadas): se quedan en local
+tests/fixtures/*.png
+tests/fixtures/*.jpg

@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Simulador móvil · Depósito común</title>
+    <!--
+      Herramienta SOLO de desarrollo: muestra la app (modo demo) dentro de marcos de móvil.
+      Se abre con `npm run movil` (o http://localhost:5173/simulador.html con `npm run dev`).
+      No forma parte del build de producción: Vite solo empaqueta index.html.
+    -->
+    <style>
+      :root {
+        --bg: #e9eaee;
+        --panel: #ffffff;
+        --ink: #17181c;
+        --ink-2: #5d6170;
+        --line: #d9dbe2;
+        --accent: #f5a524;
+        --bezel: #121317;
+        color-scheme: light;
+      }
+      :root[data-ui='dark'] {
+        --bg: #0d0e11;
+        --panel: #17191e;
+        --ink: #eceef3;
+        --ink-2: #9aa0ad;
+        --line: #2a2d35;
+        --bezel: #000;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        padding: 10px 18px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      header h1 {
+        margin: 0 8px 0 0;
+        font-size: 15px;
+      }
+      .ctl {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      select,
+      button {
+        font: inherit;
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        height: 32px;
+        padding: 0 10px;
+        cursor: pointer;
+      }
+      button:hover,
+      select:hover {
+        border-color: var(--ink-2);
+      }
+      button[aria-pressed='true'] {
+        background: var(--ink);
+        color: var(--panel);
+        border-color: var(--ink);
+      }
+      .seg {
+        display: inline-flex;
+      }
+      .seg button {
+        border-radius: 0;
+        margin-left: -1px;
+      }
+      .seg button:first-child {
+        border-radius: 8px 0 0 8px;
+        margin-left: 0;
+      }
+      .seg button:last-child {
+        border-radius: 0 8px 8px 0;
+      }
+      .spacer {
+        flex: 1;
+      }
+      nav.routes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      nav.routes button {
+        height: 28px;
+        font-size: 12px;
+      }
+      main {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 36px;
+        padding: 24px;
+        overflow: auto;
+      }
+      figure {
+        margin: 0;
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+      }
+      figcaption {
+        font-size: 12px;
+        color: var(--ink-2);
+      }
+      figcaption b {
+        color: var(--ink);
+      }
+      .phone {
+        position: relative;
+        padding: 12px;
+        border-radius: 46px;
+        background: var(--bezel);
+        box-shadow: 0 0 0 2px #3a3d46, 0 24px 60px rgb(0 0 0 / 0.25);
+        transform-origin: top center;
+      }
+      .phone.tablet {
+        border-radius: 30px;
+        padding: 16px;
+      }
+      .screen {
+        position: relative;
+        overflow: hidden;
+        border-radius: 34px;
+        background: #fff;
+      }
+      .phone.tablet .screen {
+        border-radius: 16px;
+      }
+      .notch {
+        position: absolute;
+        z-index: 2;
+        top: 10px;
+        left: 50%;
+        width: 96px;
+        height: 26px;
+        transform: translateX(-50%);
+        border-radius: 14px;
+        background: #000;
+        pointer-events: none;
+      }
+      .phone.landscape .notch {
+        display: none;
+      }
+      .phone.cut-notch .notch {
+        top: 0;
+        width: 160px;
+        height: 30px;
+        border-radius: 0 0 18px 18px;
+      }
+      .phone.cut-hole .notch {
+        top: 10px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .phone.cut-hole {
+        border-radius: 34px;
+      }
+      .phone.cut-hole .screen {
+        border-radius: 24px;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 26px 0 30px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        background: #111317;
+      }
+      .status .icons {
+        display: inline-flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .status .batt {
+        width: 22px;
+        height: 11px;
+        border: 1.5px solid currentColor;
+        border-radius: 3px;
+        padding: 1px;
+      }
+      .status .batt::before {
+        content: '';
+        display: block;
+        width: 75%;
+        height: 100%;
+        background: currentColor;
+        border-radius: 1px;
+      }
+      iframe {
+        display: block;
+        border: 0;
+        background: #fff;
+      }
+      .bar {
+        position: absolute;
+        z-index: 2;
+        bottom: 7px;
+        left: 50%;
+        width: 120px;
+        height: 4px;
+        transform: translateX(-50%);
+        border-radius: 2px;
+        background: rgb(127 127 127 / 0.6);
+        pointer-events: none;
+      }
+      .hint {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 0 24px 24px;
+        color: var(--ink-2);
+        font-size: 12px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Simulador móvil</h1>
+      <label class="ctl">Dispositivo <select id="device"></select></label>
+      <span class="ctl">Vista
+        <span class="seg" id="mode">
+          <button type="button" data-v="one" aria-pressed="true">Uno</button>
+          <button type="button" data-v="three" aria-pressed="false">Tres móviles</button>
+        </span>
+      </span>
+      <label class="ctl">Usuario <select id="user"></select></label>
+      <span class="ctl">Tema
+        <span class="seg" id="theme">
+          <button type="button" data-v="light" aria-pressed="true">Claro</button>
+          <button type="button" data-v="dark" aria-pressed="false">Oscuro</button>
+        </span>
+      </span>
+      <span class="ctl">Datos
+        <span class="seg" id="data">
+          <button type="button" data-v="normal" aria-pressed="true">Demo</button>
+          <button type="button" data-v="mucho" aria-pressed="false">2 años</button>
+        </span>
+      </span>
+      <button type="button" id="rotate" title="Girar">Girar ⟲</button>
+      <button type="button" id="reload" title="Recargar">Recargar</button>
+      <span class="spacer"></span>
+      <nav class="routes" id="routes" aria-label="Ir a"></nav>
+    </header>
+    <main id="stage"></main>
+    <p class="hint">
+      Es la app real en modo demo (los datos son de prueba y se pierden al recargar). Puedes tocar, hacer scroll y navegar dentro de cada móvil.
+      Las secciones de arriba cambian todos los móviles a la vez.
+    </p>
+    <script type="module">
+      // Tamaños en píxeles CSS (los que ve la web). cut: muesca (notch), isla dinámica (island) o agujero (hole).
+      const DEVICES = [
+        { id: 'iphone-11', name: 'iPhone 11 / XR', w: 414, h: 896, cut: 'notch' },
+        { id: 'iphone-11-pro', name: 'iPhone 11 Pro / 12-13 mini', w: 375, h: 812, cut: 'notch' },
+        { id: 'iphone-12', name: 'iPhone 12 / 13 / 14', w: 390, h: 844, cut: 'notch' },
+        { id: 'iphone-14-plus', name: 'iPhone 14 Plus', w: 428, h: 926, cut: 'notch' },
+        { id: 'iphone-15', name: 'iPhone 15 / 16 / 14 Pro', w: 393, h: 852, cut: 'island' },
+        { id: 'iphone-16-pro', name: 'iPhone 16 Pro', w: 402, h: 874, cut: 'island' },
+        { id: 'iphone-15-max', name: 'iPhone 15 Pro Max / 16 Plus', w: 430, h: 932, cut: 'island' },
+        { id: 'iphone-16-max', name: 'iPhone 16 Pro Max', w: 440, h: 956, cut: 'island' },
+        { id: 'galaxy-a55', name: 'Samsung Galaxy A55', w: 384, h: 832, cut: 'hole' },
+      ];
+      const TRIO = ['iphone-11', 'iphone-15', 'galaxy-a55'];
+      const USERS = ['Marta', 'Javier', 'Lucía', 'Pablo', 'Carmen'];
+      const ROUTES = [
+        ['Resumen', '#/'],
+        ['Viajes', '#/viajes'],
+        ['Nuevo viaje', '#/viajes/nuevo'],
+        ['Agenda', '#/calendario'],
+        ['Reservas', '#/reservas'],
+        ['Repostajes', '#/repostajes'],
+        ['Repostar', '#/repostajes/nuevo'],
+        ['Gastos', '#/gastos'],
+        ['Datos', '#/estadisticas'],
+        ['Perfil', '#/perfil'],
+      ];
+
+      const KEY = 'simulador-movil';
+      const saved = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(KEY) || '{}');
+        } catch {
+          return {};
+        }
+      })();
+      const state = Object.assign({ device: 'iphone-11', mode: 'one', user: 'Marta', theme: 'light', data: 'normal', landscape: false, route: '#/' }, saved);
+      if (!DEVICES.some((d) => d.id === state.device)) state.device = 'iphone-11';
+      const save = () => {
+        try {
+          localStorage.setItem(KEY, JSON.stringify(state));
+        } catch {}
+      };
+
+      const $ = (s) => document.querySelector(s);
+      const el = (tag, attrs = {}, ...kids) => {
+        const e = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+        e.append(...kids);
+        return e;
+      };
+
+      for (const d of DEVICES) $('#device').append(el('option', { value: d.id }, `${d.name} · ${d.w}×${d.h}`));
+      for (const u of USERS) $('#user').append(el('option', { value: u }, u));
+      for (const [label, hash] of ROUTES) {
+        const b = el('button', { type: 'button' }, label);
+        b.addEventListener('click', () => {
+          state.route = hash;
+          save();
+          for (const f of document.querySelectorAll('iframe')) f.contentWindow.location.hash = hash;
+        });
+        $('#routes').append(b);
+      }
+
+      function segment(id, key) {
+        const root = $(id);
+        const sync = () => root.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === state[key])));
+        root.addEventListener('click', (e) => {
+          const b = e.target.closest('button');
+          if (!b) return;
+          state[key] = b.dataset.v;
+          save();
+          sync();
+          render();
+        });
+        sync();
+      }
+
+      function src() {
+        const q = new URLSearchParams({ demo: '', como: state.user.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase() });
+        if (state.data === 'mucho') q.set('mucho', '');
+        return `/?${q.toString().replace(/=(&|$)/g, '$1')}${state.route}`;
+      }
+
+      function phone(dev) {
+        const land = state.landscape;
+        const w = land ? dev.h : dev.w;
+        const h = land ? dev.w : dev.h;
+        // La barra de estado del sistema ocupa la parte de arriba: la web empieza debajo, como en un móvil real.
+        const sb = land ? 0 : { notch: 48, island: 54, hole: 32 }[dev.cut];
+        const status = el('div', { class: 'status' });
+        status.style.height = `${sb}px`;
+        if (land) status.hidden = true;
+        status.append(el('span', {}, '9:41'), el('span', { class: 'icons' }, '5G', el('span', { class: 'batt' })));
+        const frame = el('iframe', { src: src(), width: String(w), height: String(h - sb), title: `App en ${dev.name}` });
+        // Recordar la última sección visitada dentro del móvil.
+        frame.addEventListener('load', () => {
+          try {
+            frame.contentWindow.addEventListener('hashchange', () => {
+              state.route = frame.contentWindow.location.hash || '#/';
+              save();
+            });
+          } catch {}
+        });
+        const screen = el('div', { class: 'screen' }, status, frame);
+        const cls = ['phone', `cut-${dev.cut}`, land ? 'landscape' : ''].filter(Boolean).join(' ');
+        const body = el('div', { class: cls }, el('div', { class: 'notch' }), screen, el('div', { class: 'bar' }));
+        const cap = el('figcaption', {});
+        cap.append(el('b', {}, dev.name), ` · ${w}×${h}`);
+        return { fig: el('figure', {}, body, cap), body, h: h + 24 };
+      }
+
+      function render() {
+        // El tema se guarda en el almacenamiento de la app (mismo origen), así cada recarga lo respeta.
+        try {
+          localStorage.setItem('deposito-tema', state.theme);
+        } catch {}
+        document.documentElement.dataset.ui = state.theme;
+        $('#device').value = state.device;
+        $('#user').value = state.user;
+        const stage = $('#stage');
+        stage.replaceChildren();
+        const list = state.mode === 'three' ? TRIO.map((id) => DEVICES.find((d) => d.id === id)) : [DEVICES.find((d) => d.id === state.device)];
+        const phones = list.map(phone);
+        phones.forEach((p) => stage.append(p.fig));
+        // Escala para que quepa entero en la ventana sin scroll.
+        const fit = () => {
+          const avail = stage.clientHeight - 60;
+          const tallest = Math.max(...phones.map((p) => p.h));
+          const s = Math.min(1, avail / tallest);
+          for (const p of phones) {
+            p.body.style.transform = `scale(${s})`;
+            p.body.style.marginBottom = `${-(1 - s) * p.h}px`;
+          }
+        };
+        requestAnimationFrame(fit);
+        window.onresize = fit;
+      }
+
+      $('#device').addEventListener('change', (e) => {
+        state.device = e.target.value;
+        state.mode = 'one';
+        save();
+        segment('#mode', 'mode');
+        render();
+      });
+      $('#user').addEventListener('change', (e) => {
+        state.user = e.target.value;
+        save();
+        render();
+      });
+      $('#rotate').addEventListener('click', () => {
+        state.landscape = !state.landscape;
+        save();
+        render();
+      });
+      $('#reload').addEventListener('click', render);
+      segment('#mode', 'mode');
+      segment('#theme', 'theme');
+      segment('#data', 'data');
+      render();
+    </script>
+  </body>
+</html>

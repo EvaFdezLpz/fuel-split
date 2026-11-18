@@ -1,0 +1,10 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+const p = await b.newPage({ viewport: { width: 1440, height: 950 } });
+p.on('response', (r) => r.status() >= 400 && console.log('HTTP', r.status(), r.url()));
+p.on('console', (m) => console.log('console', m.type(), m.text()));
+p.on('pageerror', (e) => console.log('pageerror', e.message));
+await p.goto('http://localhost:5173/simulador.html');
+await p.waitForTimeout(3000);
+for (const f of p.frames()) console.log('frame', f.url(), (await f.evaluate(() => document.body?.innerText.slice(0, 80)).catch((e) => 'ERR ' + e.message)));
+await b.close();

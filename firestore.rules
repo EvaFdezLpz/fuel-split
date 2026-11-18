@@ -1,0 +1,241 @@
+rules_version = '2';
+
+// Reglas de Depósito común. Son la frontera de seguridad real: el cliente puede manipularse,
+// estas reglas no. Todo lo que no se permite explícitamente queda denegado.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Identidad ----------
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function me() {
+      return request.auth.token.email.lower();
+    }
+    function memberPath(email) {
+      return /databases/$(database)/documents/members/$(email);
+    }
+    // Lista blanca: solo los correos con documento en /members pueden hacer algo.
+    function isMember() {
+      return signedIn() && exists(memberPath(me()));
+    }
+
+    // ---------- Validación ----------
+    function data() { return request.resource.data; }
+    function exactKeys(keys) {
+      return data().keys().hasAll(keys) && data().keys().hasOnly(keys);
+    }
+    function isKm(v) { return v is int && v >= 0 && v <= 2000000; }
+    function isDocId(v) { return v is string && v.matches('^[A-Za-z0-9]{20}$'); }
+    function isNote(v) { return v is string && v.size() <= 280; }
+    function sensibleDate(t) {
+      return t is timestamp
+        && t > timestamp.date(2005, 1, 1)
+        && t < request.time + duration.value(1, 'h');
+    }
+    function evidencePath(id) {
+      return /databases/$(database)/documents/evidence/$(id);
+    }
+    // Una foto solo puede usarla quien la subió (evita "tomar prestada" la evidencia de otro).
+    function ownEvidence(id) {
+      return id == null || (isDocId(id) && get(evidencePath(id)).data.owner == me());
+    }
+    function reading(r, kmRequired) {
+      return r is map
+        && r.keys().hasAll(['km', 'photoId'])
+        && r.keys().hasOnly(['km', 'photoId'])
+        && (kmRequired ? isKm(r.km) : (r.km == null || isKm(r.km)))
+        && (r.photoId == null || isDocId(r.photoId))
+        && !(r.km == null && r.photoId != null);
+    }
+    function validTrip() {
+      let d = data();
+      return reading(d.start, true)
+        && reading(d.end, false)
+        && (d.end.km == null || (d.end.km >= d.start.km && d.end.km - d.start.km <= 3000))
+        && sensibleDate(d.date)
+        && isNote(d.note)
+        && d.updatedAt == request.time;
+    }
+
+    // ---------- Miembros ----------
+    // Solo lectura desde la app. Se gestionan con scripts/seed-members.mjs (Admin SDK) o la consola.
+    match /members/{email} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
+    // ---------- Evidencias (fotos) ----------
+    // Inmutables: una prueba no se edita ni se borra desde la app.
+    match /evidence/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && isDocId(id)
+        && exactKeys(['owner', 'kind', 'mime', 'data', 'createdAt'])
+        && data().owner == me()
+        && data().kind in ['odometer', 'receipt']
+        && data().mime == 'image/jpeg'
+        && data().data is string
+        && data().data.size() >= 1000
+        && data().data.size() <= 900000
+        // JPEG en base64: empieza por la firma FFD8FF ("/9j/") y solo contiene caracteres base64.
+        && data().data.matches('^/9j/[A-Za-z0-9+/=]+$')
+        && data().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // ---------- Viajes ----------
+    match /trips/{id} {
+      allow read: if isMember();
+
+      allow create: if isMember()
+        && exactKeys(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt'])
+        && data().driver == me()
+        && data().createdAt == request.time
+        && validTrip()
+        && ownEvidence(data().start.photoId)
+        && ownEvidence(data().end.photoId);
+
+      // Solo el conductor. Puede terminar un viaje abierto cuando quiera; corregir, durante 7 días.
+      allow update: if isMember()
+        && resource.data.driver == me()
+        && exactKeys(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt'])
+        && data().driver == resource.data.driver
+        && data().createdAt == resource.data.createdAt
+        && validTrip()
+        && (resource.data.end.km == null || request.time < resource.data.createdAt + duration.value(7, 'd'))
+        && (data().start.photoId == resource.data.start.photoId || ownEvidence(data().start.photoId))
+        && (data().end.photoId == resource.data.end.photoId || ownEvidence(data().end.photoId));
+
+      // Fotos olvidadas: el conductor puede añadir la foto que falte en cualquier momento,
+      // sin tocar nada más (ni km, ni fecha, ni nota). Así un olvido se arregla aunque pasen semanas.
+      allow update: if isMember()
+        && resource.data.driver == me()
+        && data().diff(resource.data).affectedKeys().hasOnly(['start', 'end', 'updatedAt'])
+        && data().updatedAt == request.time
+        && data().start.km == resource.data.start.km
+        && data().end.km == resource.data.end.km
+        && reading(data().start, true)
+        && reading(data().end, false)
+        && (data().start.photoId == resource.data.start.photoId
+            || (resource.data.start.photoId == null && data().start.photoId != null && ownEvidence(data().start.photoId)))
+        && (data().end.photoId == resource.data.end.photoId
+            || (resource.data.end.photoId == null && data().end.photoId != null && ownEvidence(data().end.photoId)));
+
+      allow delete: if isMember()
+        && resource.data.driver == me()
+        && request.time < resource.data.createdAt + duration.value(24, 'h');
+    }
+
+    // ---------- Repostajes ----------
+    match /refuels/{id} {
+      allow read: if isMember();
+
+      allow create: if isMember()
+        && exactKeys(['payer', 'date', 'amountCents', 'priceMilli', 'odometerKm', 'odometerPhotoId', 'receiptPhotoId', 'note', 'createdAt'])
+        && data().payer == me()
+        && data().amountCents is int && data().amountCents >= 100 && data().amountCents <= 30000
+        && data().priceMilli is int && data().priceMilli >= 500 && data().priceMilli <= 4000
+        && isKm(data().odometerKm)
+        && sensibleDate(data().date)
+        && isNote(data().note)
+        && data().createdAt == request.time
+        // El ticket es obligatorio y tiene que ser una foto subida por quien paga.
+        && isDocId(data().receiptPhotoId)
+        && get(evidencePath(data().receiptPhotoId)).data.owner == me()
+        && get(evidencePath(data().receiptPhotoId)).data.kind == 'receipt'
+        && (data().odometerPhotoId == null || ownEvidence(data().odometerPhotoId));
+
+      // Inmutable. Quien pagó puede borrarlo solo durante las primeras 24 h (para corregir errores).
+      allow update: if false;
+      allow delete: if isMember()
+        && resource.data.payer == me()
+        && request.time < resource.data.createdAt + duration.value(24, 'h');
+    }
+
+    // ---------- Pagos (Bizum) ----------
+    // ID determinista "<repostaje>__<correo del deudor>": un único pago por deuda (sin duplicados ni carreras).
+    match /payments/{id} {
+      allow read: if isMember();
+
+      // El deudor marca que ha enviado el Bizum. No puede pagarse a sí mismo ni inventar el acreedor.
+      allow create: if isMember()
+        && exactKeys(['refuelId', 'debtor', 'creditor', 'amountCents', 'status', 'sentAt', 'confirmedAt'])
+        && isDocId(data().refuelId)
+        && id == data().refuelId + '__' + me()
+        && data().debtor == me()
+        && exists(/databases/$(database)/documents/refuels/$(data().refuelId))
+        && data().creditor == get(/databases/$(database)/documents/refuels/$(data().refuelId)).data.payer
+        && data().creditor != me()
+        && data().amountCents is int && data().amountCents > 0 && data().amountCents <= 30000
+        && data().status == 'sent'
+        && data().sentAt == request.time
+        && data().confirmedAt == null;
+
+      // Bizum de ajuste: un reparto ya pagado cambió (viaje o repostaje apuntado tarde).
+      // Va entre quien llenó el depósito y otra persona, en cualquier sentido:
+      // la persona completa la diferencia, o quien llenó se la devuelve.
+      allow create: if isMember()
+        && exactKeys(['refuelId', 'debtor', 'creditor', 'amountCents', 'status', 'sentAt', 'confirmedAt', 'kind', 'seq'])
+        && data().kind == 'adjust'
+        && data().seq is int && data().seq >= 1 && data().seq <= 99
+        && isDocId(data().refuelId)
+        && data().creditor is string
+        && id == data().refuelId + '__' + me() + '__' + data().creditor + '__a' + string(data().seq)
+        && data().debtor == me()
+        && data().creditor != me()
+        && exists(memberPath(data().creditor))
+        && exists(/databases/$(database)/documents/refuels/$(data().refuelId))
+        && (data().creditor == get(/databases/$(database)/documents/refuels/$(data().refuelId)).data.payer
+            || me() == get(/databases/$(database)/documents/refuels/$(data().refuelId)).data.payer)
+        && data().amountCents is int && data().amountCents > 0 && data().amountCents <= 30000
+        && data().status == 'sent'
+        && data().sentAt == request.time
+        && data().confirmedAt == null;
+
+      // Solo el acreedor confirma que lo ha recibido, y solo puede cambiar el estado.
+      allow update: if isMember()
+        && resource.data.creditor == me()
+        && resource.data.status == 'sent'
+        && data().diff(resource.data).affectedKeys().hasOnly(['status', 'confirmedAt'])
+        && data().status == 'confirmed'
+        && data().confirmedAt == request.time;
+
+      // El deudor puede deshacer mientras no esté confirmado.
+      allow delete: if isMember()
+        && resource.data.debtor == me()
+        && resource.data.status == 'sent';
+    }
+
+    // ---------- Reservas del coche ----------
+    // Cualquiera de la familia las ve; cada uno crea, cambia y borra solo las suyas.
+    function isDay(v) { return v is string && v.matches('^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }
+    function validReservation() {
+      return isDay(data().day)
+        && isDay(data().endDay)
+        && data().endDay >= data().day
+        && data().note is string && data().note.size() >= 1 && data().note.size() <= 280;
+    }
+    match /reservations/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && exactKeys(['member', 'day', 'endDay', 'note', 'createdAt'])
+        && data().member == me()
+        && data().createdAt == request.time
+        && validReservation();
+      allow update: if isMember()
+        && resource.data.member == me()
+        && data().diff(resource.data).affectedKeys().hasOnly(['day', 'endDay', 'note'])
+        && validReservation();
+      allow delete: if isMember() && resource.data.member == me();
+    }
+
+    // Cualquier otra ruta: denegada.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

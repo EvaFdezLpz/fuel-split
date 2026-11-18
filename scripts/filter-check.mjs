@@ -1,0 +1,16 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+p.on('pageerror', (e) => console.log('pageerror', e.message));
+await p.goto('http://localhost:5173/?demo&como=carmen#/viajes');
+await p.waitForTimeout(700);
+console.log('antes:', await p.locator('.pagehead p').innerText());
+await p.click('.drp-trigger'); await p.locator('.drp-day:not(.out)').nth(2).click(); await p.locator('.drp-day:not(.out)').nth(12).click(); await p.click('.drp-actions .btn.primary');
+await p.waitForTimeout(300);
+console.log('fechas:', await p.locator('.pagehead p').innerText(), '|', await p.locator('.drp-label').innerText());
+await p.click('.person-pick .chip:has-text("Javier")'); await p.waitForTimeout(300);
+console.log('javier:', await p.locator('.pagehead p').innerText());
+await p.goto('http://localhost:5173/?demo&como=carmen#/perfil'); await p.waitForTimeout(500);
+await p.click('.seg-control button:has-text("Fechas")'); await p.waitForTimeout(300);
+console.log('perfil picker:', await p.locator('.drp-trigger').count());
+await b.close();

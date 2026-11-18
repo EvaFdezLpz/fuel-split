@@ -1,0 +1,740 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-16T14:21:57.405Z",
+  "title": "Design System: Depósito común",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Gris de poste",
+        "canonical": "oklch(95.2% 0.004 250)",
+        "dark": "oklch(20.5% 0.01 258)",
+        "tonalRamp": [
+          "oklch(15% 0.002 250)",
+          "oklch(25% 0.003 250)",
+          "oklch(35% 0.003 250)",
+          "oklch(45% 0.004 250)",
+          "oklch(55% 0.004 250)",
+          "oklch(65% 0.004 250)",
+          "oklch(80% 0.003 250)",
+          "oklch(95% 0.002 250)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "oklch(99.2% 0.002 250)",
+        "dark": "oklch(24% 0.011 258)",
+        "tonalRamp": [
+          "oklch(15% 0.001 250)",
+          "oklch(25% 0.002 250)",
+          "oklch(35% 0.002 250)",
+          "oklch(45% 0.002 250)",
+          "oklch(55% 0.002 250)",
+          "oklch(65% 0.002 250)",
+          "oklch(80% 0.002 250)",
+          "oklch(95% 0.001 250)"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Papel sombreado",
+        "canonical": "oklch(97.4% 0.003 250)",
+        "dark": "oklch(27% 0.012 258)",
+        "tonalRamp": [
+          "oklch(15% 0.001 250)",
+          "oklch(25% 0.002 250)",
+          "oklch(35% 0.002 250)",
+          "oklch(45% 0.003 250)",
+          "oklch(55% 0.003 250)",
+          "oklch(65% 0.003 250)",
+          "oklch(80% 0.002 250)",
+          "oklch(95% 0.001 250)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "oklch(21% 0.014 258)",
+        "dark": "oklch(94% 0.006 250)",
+        "tonalRamp": [
+          "oklch(15% 0.006 258)",
+          "oklch(25% 0.011 258)",
+          "oklch(35% 0.011 258)",
+          "oklch(45% 0.014 258)",
+          "oklch(55% 0.014 258)",
+          "oklch(65% 0.014 258)",
+          "oklch(80% 0.011 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Tinta secundaria",
+        "canonical": "oklch(43% 0.014 258)",
+        "dark": "oklch(77% 0.01 250)",
+        "tonalRamp": [
+          "oklch(15% 0.006 258)",
+          "oklch(25% 0.011 258)",
+          "oklch(35% 0.011 258)",
+          "oklch(45% 0.014 258)",
+          "oklch(55% 0.014 258)",
+          "oklch(65% 0.014 258)",
+          "oklch(80% 0.011 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Tinta terciaria",
+        "canonical": "oklch(55% 0.012 258)",
+        "dark": "oklch(66% 0.01 250)",
+        "tonalRamp": [
+          "oklch(15% 0.005 258)",
+          "oklch(25% 0.009 258)",
+          "oklch(35% 0.009 258)",
+          "oklch(45% 0.012 258)",
+          "oklch(55% 0.012 258)",
+          "oklch(65% 0.012 258)",
+          "oklch(80% 0.009 258)",
+          "oklch(95% 0.005 258)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Filete",
+        "canonical": "oklch(89% 0.005 255)",
+        "dark": "oklch(32% 0.012 258)",
+        "tonalRamp": [
+          "oklch(15% 0.002 255)",
+          "oklch(25% 0.004 255)",
+          "oklch(35% 0.004 255)",
+          "oklch(45% 0.005 255)",
+          "oklch(55% 0.005 255)",
+          "oklch(65% 0.005 255)",
+          "oklch(80% 0.004 255)",
+          "oklch(95% 0.002 255)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Filete marcado",
+        "canonical": "oklch(80% 0.006 255)",
+        "dark": "oklch(40% 0.012 258)",
+        "tonalRamp": [
+          "oklch(15% 0.003 255)",
+          "oklch(25% 0.005 255)",
+          "oklch(35% 0.005 255)",
+          "oklch(45% 0.006 255)",
+          "oklch(55% 0.006 255)",
+          "oklch(65% 0.006 255)",
+          "oklch(80% 0.005 255)",
+          "oklch(95% 0.003 255)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Grafito de panel",
+        "canonical": "oklch(19.5% 0.012 258)",
+        "dark": "oklch(12.5% 0.01 258)",
+        "tonalRamp": [
+          "oklch(15% 0.005 258)",
+          "oklch(25% 0.009 258)",
+          "oklch(35% 0.009 258)",
+          "oklch(45% 0.012 258)",
+          "oklch(55% 0.012 258)",
+          "oklch(65% 0.012 258)",
+          "oklch(80% 0.009 258)",
+          "oklch(95% 0.005 258)"
+        ]
+      },
+      "panel-2": {
+        "role": "neutral",
+        "displayName": "Grafito activo",
+        "canonical": "oklch(25% 0.014 258)",
+        "dark": "oklch(17% 0.012 258)",
+        "tonalRamp": [
+          "oklch(15% 0.006 258)",
+          "oklch(25% 0.011 258)",
+          "oklch(35% 0.011 258)",
+          "oklch(45% 0.014 258)",
+          "oklch(55% 0.014 258)",
+          "oklch(65% 0.014 258)",
+          "oklch(80% 0.011 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      },
+      "panel-line": {
+        "role": "neutral",
+        "displayName": "Filete de panel",
+        "canonical": "oklch(31% 0.014 258)",
+        "dark": "oklch(30% 0.014 258)",
+        "tonalRamp": [
+          "oklch(15% 0.006 258)",
+          "oklch(25% 0.011 258)",
+          "oklch(35% 0.011 258)",
+          "oklch(45% 0.014 258)",
+          "oklch(55% 0.014 258)",
+          "oklch(65% 0.014 258)",
+          "oklch(80% 0.011 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      },
+      "panel-ink": {
+        "role": "neutral",
+        "displayName": "Tinta de panel",
+        "canonical": "oklch(94% 0.006 250)",
+        "tonalRamp": [
+          "oklch(15% 0.003 250)",
+          "oklch(25% 0.005 250)",
+          "oklch(35% 0.005 250)",
+          "oklch(45% 0.006 250)",
+          "oklch(55% 0.006 250)",
+          "oklch(65% 0.006 250)",
+          "oklch(80% 0.005 250)",
+          "oklch(95% 0.003 250)"
+        ]
+      },
+      "panel-ink-2": {
+        "role": "neutral",
+        "displayName": "Tinta de panel secundaria",
+        "canonical": "oklch(74% 0.012 250)",
+        "tonalRamp": [
+          "oklch(15% 0.005 250)",
+          "oklch(25% 0.009 250)",
+          "oklch(35% 0.009 250)",
+          "oklch(45% 0.012 250)",
+          "oklch(55% 0.012 250)",
+          "oklch(65% 0.012 250)",
+          "oklch(80% 0.009 250)",
+          "oklch(95% 0.005 250)"
+        ]
+      },
+      "led": {
+        "role": "primary",
+        "displayName": "Ámbar LED",
+        "canonical": "oklch(83% 0.165 74)",
+        "tonalRamp": [
+          "oklch(15% 0.074 74)",
+          "oklch(25% 0.124 74)",
+          "oklch(35% 0.124 74)",
+          "oklch(45% 0.165 74)",
+          "oklch(55% 0.165 74)",
+          "oklch(65% 0.165 74)",
+          "oklch(80% 0.124 74)",
+          "oklch(95% 0.074 74)"
+        ]
+      },
+      "led-off": {
+        "role": "neutral",
+        "displayName": "Segmento apagado",
+        "canonical": "oklch(29% 0.028 70)",
+        "tonalRamp": [
+          "oklch(15% 0.013 70)",
+          "oklch(25% 0.021 70)",
+          "oklch(35% 0.021 70)",
+          "oklch(45% 0.028 70)",
+          "oklch(55% 0.028 70)",
+          "oklch(65% 0.028 70)",
+          "oklch(80% 0.021 70)",
+          "oklch(95% 0.013 70)"
+        ]
+      },
+      "led-ok": {
+        "role": "secondary",
+        "displayName": "LED verde",
+        "canonical": "oklch(82% 0.17 152)",
+        "tonalRamp": [
+          "oklch(15% 0.077 152)",
+          "oklch(25% 0.128 152)",
+          "oklch(35% 0.128 152)",
+          "oklch(45% 0.170 152)",
+          "oklch(55% 0.170 152)",
+          "oklch(65% 0.170 152)",
+          "oklch(80% 0.128 152)",
+          "oklch(95% 0.077 152)"
+        ]
+      },
+      "led-bad": {
+        "role": "secondary",
+        "displayName": "LED rojo",
+        "canonical": "oklch(72% 0.19 28)",
+        "tonalRamp": [
+          "oklch(15% 0.086 28)",
+          "oklch(25% 0.143 28)",
+          "oklch(35% 0.143 28)",
+          "oklch(45% 0.190 28)",
+          "oklch(55% 0.190 28)",
+          "oklch(65% 0.190 28)",
+          "oklch(80% 0.143 28)",
+          "oklch(95% 0.086 28)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ámbar de botón",
+        "canonical": "oklch(80% 0.16 72)",
+        "tonalRamp": [
+          "oklch(15% 0.072 72)",
+          "oklch(25% 0.120 72)",
+          "oklch(35% 0.120 72)",
+          "oklch(45% 0.160 72)",
+          "oklch(55% 0.160 72)",
+          "oklch(65% 0.160 72)",
+          "oklch(80% 0.120 72)",
+          "oklch(95% 0.072 72)"
+        ]
+      },
+      "accent-press": {
+        "role": "primary",
+        "displayName": "Ámbar prensado",
+        "canonical": "oklch(74% 0.16 68)",
+        "tonalRamp": [
+          "oklch(15% 0.072 68)",
+          "oklch(25% 0.120 68)",
+          "oklch(35% 0.120 68)",
+          "oklch(45% 0.160 68)",
+          "oklch(55% 0.160 68)",
+          "oklch(65% 0.160 68)",
+          "oklch(80% 0.120 68)",
+          "oklch(95% 0.072 68)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Tinta tostada",
+        "canonical": "oklch(22% 0.03 60)",
+        "tonalRamp": [
+          "oklch(15% 0.013 60)",
+          "oklch(25% 0.022 60)",
+          "oklch(35% 0.022 60)",
+          "oklch(45% 0.030 60)",
+          "oklch(55% 0.030 60)",
+          "oklch(65% 0.030 60)",
+          "oklch(80% 0.022 60)",
+          "oklch(95% 0.013 60)"
+        ]
+      },
+      "ok": {
+        "role": "secondary",
+        "displayName": "Verde cobrado",
+        "canonical": "oklch(50% 0.12 155)",
+        "dark": "oklch(76% 0.14 155)",
+        "tonalRamp": [
+          "oklch(15% 0.054 155)",
+          "oklch(25% 0.090 155)",
+          "oklch(35% 0.090 155)",
+          "oklch(45% 0.120 155)",
+          "oklch(55% 0.120 155)",
+          "oklch(65% 0.120 155)",
+          "oklch(80% 0.090 155)",
+          "oklch(95% 0.054 155)"
+        ]
+      },
+      "ok-bg": {
+        "role": "secondary",
+        "displayName": "Fondo cobrado",
+        "canonical": "oklch(95% 0.035 155)",
+        "dark": "oklch(28% 0.05 155)",
+        "tonalRamp": [
+          "oklch(15% 0.016 155)",
+          "oklch(25% 0.026 155)",
+          "oklch(35% 0.026 155)",
+          "oklch(45% 0.035 155)",
+          "oklch(55% 0.035 155)",
+          "oklch(65% 0.035 155)",
+          "oklch(80% 0.026 155)",
+          "oklch(95% 0.016 155)"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Ocre de aviso",
+        "canonical": "oklch(52% 0.12 65)",
+        "dark": "oklch(80% 0.13 75)",
+        "tonalRamp": [
+          "oklch(15% 0.054 65)",
+          "oklch(25% 0.090 65)",
+          "oklch(35% 0.090 65)",
+          "oklch(45% 0.120 65)",
+          "oklch(55% 0.120 65)",
+          "oklch(65% 0.120 65)",
+          "oklch(80% 0.090 65)",
+          "oklch(95% 0.054 65)"
+        ]
+      },
+      "warn-bg": {
+        "role": "secondary",
+        "displayName": "Fondo de aviso",
+        "canonical": "oklch(95.5% 0.045 80)",
+        "dark": "oklch(29% 0.05 70)",
+        "tonalRamp": [
+          "oklch(15% 0.020 80)",
+          "oklch(25% 0.034 80)",
+          "oklch(35% 0.034 80)",
+          "oklch(45% 0.045 80)",
+          "oklch(55% 0.045 80)",
+          "oklch(65% 0.045 80)",
+          "oklch(80% 0.034 80)",
+          "oklch(95% 0.020 80)"
+        ]
+      },
+      "bad": {
+        "role": "secondary",
+        "displayName": "Rojo debido",
+        "canonical": "oklch(52% 0.18 27)",
+        "dark": "oklch(74% 0.16 25)",
+        "tonalRamp": [
+          "oklch(15% 0.081 27)",
+          "oklch(25% 0.135 27)",
+          "oklch(35% 0.135 27)",
+          "oklch(45% 0.180 27)",
+          "oklch(55% 0.180 27)",
+          "oklch(65% 0.180 27)",
+          "oklch(80% 0.135 27)",
+          "oklch(95% 0.081 27)"
+        ]
+      },
+      "bad-bg": {
+        "role": "secondary",
+        "displayName": "Fondo debido",
+        "canonical": "oklch(95.5% 0.03 25)",
+        "dark": "oklch(29% 0.06 25)",
+        "tonalRamp": [
+          "oklch(15% 0.013 25)",
+          "oklch(25% 0.022 25)",
+          "oklch(35% 0.022 25)",
+          "oklch(45% 0.030 25)",
+          "oklch(55% 0.030 25)",
+          "oklch(65% 0.030 25)",
+          "oklch(80% 0.022 25)",
+          "oklch(95% 0.013 25)"
+        ]
+      },
+      "c1": {
+        "role": "tertiary",
+        "displayName": "Miembro azul",
+        "canonical": "#2a64a8",
+        "dark": "#2d69b2",
+        "tonalRamp": [
+          "oklch(15% 0.068 255)",
+          "oklch(25% 0.112 255)",
+          "oklch(35% 0.112 255)",
+          "oklch(45% 0.150 255)",
+          "oklch(55% 0.150 255)",
+          "oklch(65% 0.150 255)",
+          "oklch(80% 0.112 255)",
+          "oklch(95% 0.068 255)"
+        ]
+      },
+      "c2": {
+        "role": "tertiary",
+        "displayName": "Miembro naranja",
+        "canonical": "#d47a38",
+        "dark": "#d27838",
+        "tonalRamp": [
+          "oklch(15% 0.077 40)",
+          "oklch(25% 0.128 40)",
+          "oklch(35% 0.128 40)",
+          "oklch(45% 0.170 40)",
+          "oklch(55% 0.170 40)",
+          "oklch(65% 0.170 40)",
+          "oklch(80% 0.128 40)",
+          "oklch(95% 0.077 40)"
+        ]
+      },
+      "c3": {
+        "role": "tertiary",
+        "displayName": "Miembro verde",
+        "canonical": "#27a078",
+        "dark": "#2a9f78",
+        "tonalRamp": [
+          "oklch(15% 0.063 162)",
+          "oklch(25% 0.105 162)",
+          "oklch(35% 0.105 162)",
+          "oklch(45% 0.140 162)",
+          "oklch(55% 0.140 162)",
+          "oklch(65% 0.140 162)",
+          "oklch(80% 0.105 162)",
+          "oklch(95% 0.063 162)"
+        ]
+      },
+      "c4": {
+        "role": "tertiary",
+        "displayName": "Miembro violeta",
+        "canonical": "#8a7ad6",
+        "dark": "#9585de",
+        "tonalRamp": [
+          "oklch(15% 0.086 283)",
+          "oklch(25% 0.143 283)",
+          "oklch(35% 0.143 283)",
+          "oklch(45% 0.190 283)",
+          "oklch(55% 0.190 283)",
+          "oklch(65% 0.190 283)",
+          "oklch(80% 0.143 283)",
+          "oklch(95% 0.086 283)"
+        ]
+      },
+      "c5": {
+        "role": "tertiary",
+        "displayName": "Miembro rosa",
+        "canonical": "#ab4277",
+        "dark": "#ae4279",
+        "tonalRamp": [
+          "oklch(15% 0.059 355)",
+          "oklch(25% 0.098 355)",
+          "oklch(35% 0.098 355)",
+          "oklch(45% 0.130 355)",
+          "oklch(55% 0.130 355)",
+          "oklch(65% 0.130 355)",
+          "oklch(80% 0.098 355)",
+          "oklch(95% 0.059 355)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Título de página",
+        "purpose": "h1 de cada pantalla, anchura comprimida 92%."
+      },
+      "title": {
+        "displayName": "Cabecera de bloque",
+        "purpose": "h2 de bloques y diálogos; h3 a 600 / 0.95rem."
+      },
+      "body": {
+        "displayName": "Texto",
+        "purpose": "Texto corriente y tablas, con numerales tabulares globales."
+      },
+      "label": {
+        "displayName": "Etiqueta de campo",
+        "purpose": "Etiquetas de formulario."
+      },
+      "code": {
+        "displayName": "Código de registro",
+        "purpose": "V-0018, R-003; la matrícula del tótem usa la misma anchura 85% con espaciado 0.08em."
+      },
+      "caption": {
+        "displayName": "Rótulo pequeño",
+        "purpose": "Pestañas, escalas, etiquetas de barras, subtítulo de marca."
+      },
+      "totem-figure": {
+        "displayName": "Cifra de tótem",
+        "purpose": "Dígitos SVG de siete segmentos (src/segments.ts), 30px móvil / 38px escritorio / 32px surtidor, inclinación -5°, solo dentro del panel."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow",
+        "value": "0 1px 2px oklch(20% 0.02 258 / 0.06), 0 4px 14px -6px oklch(20% 0.02 258 / 0.14)",
+        "dark": "0 1px 2px oklch(0% 0 0 / 0.3), 0 6px 18px -8px oklch(0% 0 0 / 0.5)",
+        "purpose": "Reposo del tótem y del toast."
+      },
+      {
+        "name": "dialog",
+        "value": "0 24px 60px -20px oklch(10% 0.02 258 / 0.5)",
+        "purpose": "Diálogos modales, sobre velo oklch(15% 0.02 258 / 0.55)."
+      },
+      {
+        "name": "led-glow",
+        "value": "drop-shadow(0 0 3px var(--led-glow))",
+        "purpose": "Halo de segmentos encendidos (led-ok-glow y led-bad-glow al 40%)."
+      },
+      {
+        "name": "tab-glow",
+        "value": "0 0 8px var(--led-glow)",
+        "purpose": "Barra de luz de la pestaña activa."
+      },
+      {
+        "name": "segment-pressed",
+        "value": "0 1px 2px oklch(20% 0.02 258 / 0.12)",
+        "purpose": "Opción activa del control segmentado."
+      },
+      {
+        "name": "focus-field",
+        "value": "0 0 0 3px oklch(80% 0.16 72 / 0.3)",
+        "purpose": "Anillo de foco de campos."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrada de diálogos y toasts, pulso de viaje en curso."
+      },
+      {
+        "name": "state",
+        "value": "0.15s",
+        "purpose": "Fondo y borde de botones y campos; presión 0.1s translateY(1px)."
+      },
+      {
+        "name": "rise",
+        "value": "0.28s, translate 0 12px a 0, opacidad 0 a 1",
+        "purpose": "Apertura de diálogo (toast 0.3s)."
+      },
+      {
+        "name": "pulse",
+        "value": "2.4s infinito, anillo de 0 a 10px",
+        "purpose": "Punto de viaje en curso."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation/transition: none",
+        "purpose": "prefers-reduced-motion anula todo."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Tablas a fichas y filtros en rejilla por debajo; formularios a 2 columnas por encima."
+      },
+      {
+        "name": "lg",
+        "value": "960px",
+        "purpose": "Rail lateral, tótem en columnas, rejilla 1.35fr / 1fr."
+      },
+      {
+        "name": "xl",
+        "value": "1100px",
+        "purpose": "Formularios partidos con lateral sticky."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal ámbar; una por pantalla.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"19\" r=\"3\"/><path d=\"M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15\"/><circle cx=\"18\" cy=\"5\" r=\"3\"/></svg>Registrar viaje</button>",
+      "css": ".ds-btn-primary{font-family:'Archivo Variable', system-ui, sans-serif;display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border-radius:var(--radius,6px);font-weight:580;font-size:15px;cursor:pointer;transition:background .15s,border-color .15s,transform .1s;background:var(--accent,oklch(80% 0.16 72));border:1px solid var(--accent,oklch(80% 0.16 72));color:var(--accent-ink,oklch(22% 0.03 60));}.ds-btn-primary:hover{background:var(--accent-press,oklch(74% 0.16 68));border-color:var(--accent-press,oklch(74% 0.16 68));}.ds-btn-primary:active{transform:translateY(1px);}.ds-btn-primary:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}"
+    },
+    {
+      "name": "Botón oscuro",
+      "kind": "button",
+      "refersTo": "button-dark",
+      "description": "Acción hermana de la principal, en material de panel.",
+      "html": "<button class=\"ds-btn-dark\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><line x1=\"3\" x2=\"15\" y1=\"22\" y2=\"22\"/><line x1=\"4\" x2=\"14\" y1=\"9\" y2=\"9\"/><path d=\"M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18\"/><path d=\"M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5\"/></svg>Repostar</button>",
+      "css": ".ds-btn-dark{font-family:'Archivo Variable', system-ui, sans-serif;display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border-radius:var(--radius,6px);font-weight:580;font-size:15px;cursor:pointer;transition:background .15s,border-color .15s,transform .1s;background:var(--panel,oklch(19.5% 0.012 258));border:1px solid var(--panel,oklch(19.5% 0.012 258));color:var(--panel-ink,oklch(94% 0.006 250));}.ds-btn-dark:hover{background:var(--panel-2,oklch(25% 0.014 258));}.ds-btn-dark:active{transform:translateY(1px);}.ds-btn-dark:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acción neutra en papel con borde.",
+      "html": "<button class=\"ds-btn\">Cancelar</button>",
+      "css": ".ds-btn{font-family:'Archivo Variable', system-ui, sans-serif;display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border-radius:var(--radius,6px);font-weight:580;font-size:15px;cursor:pointer;transition:background .15s,border-color .15s,transform .1s;background:var(--surface,oklch(99.2% 0.002 250));border:1px solid var(--line-strong,oklch(80% 0.006 255));color:var(--ink,oklch(21% 0.014 258));}.ds-btn:hover{background:var(--surface-2,oklch(97.4% 0.003 250));border-color:var(--ink-3,oklch(55% 0.012 258));}.ds-btn:active{transform:translateY(1px);}.ds-btn:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}"
+    },
+    {
+      "name": "Campo con unidad",
+      "kind": "input",
+      "refersTo": "input-big",
+      "description": "Lectura grande de km o importe con la unidad dentro.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Km final</span><span class=\"ds-input-unit\"><input class=\"ds-input\" inputmode=\"numeric\" placeholder=\"182.731\"><span>km</span></span></label>",
+      "css": ".ds-field{display:grid;gap:6px;font-family:'Archivo Variable', system-ui, sans-serif;max-width:320px;}.ds-label{font-size:.84rem;font-weight:580;color:var(--ink,oklch(21% 0.014 258));}.ds-input-unit{position:relative;display:block;}.ds-input-unit span{position:absolute;right:12px;top:50%;translate:0 -50%;color:var(--ink-2,oklch(43% 0.014 258));font-weight:560;pointer-events:none;}.ds-input{width:100%;box-sizing:border-box;min-height:52px;padding:9px 52px 9px 12px;border-radius:var(--radius,6px);border:1px solid var(--line-strong,oklch(80% 0.006 255));background:var(--surface,oklch(99.2% 0.002 250));color:var(--ink,oklch(21% 0.014 258));font:inherit;font-size:1.35rem;font-weight:620;letter-spacing:.01em;font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s;}.ds-input::placeholder{color:var(--ink-3,oklch(55% 0.012 258));}.ds-input:hover{border-color:var(--ink-3,oklch(55% 0.012 258));}.ds-input:focus{outline:none;border-color:var(--accent-press,oklch(74% 0.16 68));box-shadow:0 0 0 3px oklch(80% 0.16 72 / .3);}"
+    },
+    {
+      "name": "Píldora de evidencia",
+      "kind": "chip",
+      "refersTo": "pill-ok",
+      "description": "Estado de evidencia de una lectura: foto, sin foto, inferido, en curso.",
+      "html": "<span class=\"ds-pill ds-ok\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg>Inicio: Foto</span> <span class=\"ds-pill ds-warn\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg>Final: Sin foto</span>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 6px;border-radius:999px;font-family:'Archivo Variable', system-ui, sans-serif;font-size:.76rem;font-weight:560;line-height:1.5;border:1px solid transparent;}.ds-ok{background:var(--ok-bg,oklch(95% 0.035 155));color:var(--ok,oklch(50% 0.12 155));}.ds-warn{background:var(--warn-bg,oklch(95.5% 0.045 80));color:var(--warn,oklch(52% 0.12 65));}.ds-pill:hover{border-color:currentColor;}"
+    },
+    {
+      "name": "Chip de miembro",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Filtro por persona con avatar de color fijo; seleccionado se invierte.",
+      "html": "<span class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\"><span class=\"ds-av\" style=\"--mc:#2a64a8\">M</span>Marta</button><button class=\"ds-chip\" aria-pressed=\"false\"><span class=\"ds-av\" style=\"--mc:#d47a38\">J</span>Javier</button></span>",
+      "css": ".ds-chips{display:flex;gap:8px;}.ds-chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border-radius:999px;border:1px solid var(--line-strong,oklch(80% 0.006 255));background:var(--surface,oklch(99.2% 0.002 250));color:var(--ink,oklch(21% 0.014 258));font-family:'Archivo Variable', system-ui, sans-serif;font-weight:540;font-size:.88rem;cursor:pointer;}.ds-chip:hover{border-color:var(--ink-3,oklch(55% 0.012 258));}.ds-chip[aria-pressed=\"true\"]{background:var(--ink,oklch(21% 0.014 258));border-color:var(--ink,oklch(21% 0.014 258));color:var(--surface,oklch(99.2% 0.002 250));}.ds-chip:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}.ds-av{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--mc);color:#fff;font-size:.62rem;font-weight:700;}"
+    },
+    {
+      "name": "Tótem",
+      "kind": "custom",
+      "refersTo": "totem",
+      "description": "Panel grafito con filas etiqueta–cifra en segmentos encendidos; la pieza firma.",
+      "html": "<div class=\"ds-totem\"><div class=\"ds-totem-head\"><span>Hola, Marta</span><span class=\"ds-plate\">C3 · 2005</span></div><a class=\"ds-trow\" href=\"#\"><div class=\"ds-trow-label\">Último precio<small>R-003 · 5 nov 2026</small></div><div class=\"ds-trow-value\"><svg class=\"ds-seg\" viewBox=\"-0.5 -0.5 60.30 21\" width=\"2.871em\" height=\"1em\" role=\"img\" aria-label=\"1,539 euros por litro\"><g transform=\"translate(0.00 0) skewX(-5)\"><polygon points=\"1.5499999999999998,1.15 2.6999999999999997,0 9.299999999999999,0 10.45,1.15 9.299999999999999,2.3 2.6999999999999997,2.3\" class=\"off\"/><polygon points=\"1.5499999999999998,10 2.6999999999999997,8.85 9.299999999999999,8.85 10.45,10 9.299999999999999,11.15 2.6999999999999997,11.15\" class=\"off\"/><polygon points=\"1.5499999999999998,18.85 2.6999999999999997,17.700000000000003 9.299999999999999,17.700000000000003 10.45,18.85 9.299999999999999,20 2.6999999999999997,20\" class=\"off\"/><polygon points=\"1.15,1.5499999999999998 2.3,2.6999999999999997 2.3,8.45 1.15,9.6 0,8.45 0,2.6999999999999997\" class=\"off\"/><polygon points=\"10.85,1.5499999999999998 12,2.6999999999999997 12,8.45 10.85,9.6 9.7,8.45 9.7,2.6999999999999997\" class=\"on\"/><polygon points=\"1.15,10.4 2.3,11.55 2.3,17.300000000000004 1.15,18.450000000000003 0,17.300000000000004 0,11.55\" class=\"off\"/><polygon points=\"10.85,10.4 12,11.55 12,17.300000000000004 10.85,18.450000000000003 9.7,17.300000000000004 9.7,11.55\" class=\"on\"/></g><rect x=\"13.20\" y=\"17.3\" width=\"2.4\" height=\"2.4\" rx=\"0.4\" class=\"on\"/><g transform=\"translate(17.00 0) skewX(-5)\"><polygon points=\"1.5499999999999998,1.15 2.6999999999999997,0 9.299999999999999,0 10.45,1.15 9.299999999999999,2.3 2.6999999999999997,2.3\" class=\"on\"/><polygon points=\"1.5499999999999998,10 2.6999999999999997,8.85 9.299999999999999,8.85 10.45,10 9.299999999999999,11.15 2.6999999999999997,11.15\" class=\"on\"/><polygon points=\"1.5499999999999998,18.85 2.6999999999999997,17.700000000000003 9.299999999999999,17.700000000000003 10.45,18.85 9.299999999999999,20 2.6999999999999997,20\" class=\"on\"/><polygon points=\"1.15,1.5499999999999998 2.3,2.6999999999999997 2.3,8.45 1.15,9.6 0,8.45 0,2.6999999999999997\" class=\"on\"/><polygon points=\"10.85,1.5499999999999998 12,2.6999999999999997 12,8.45 10.85,9.6 9.7,8.45 9.7,2.6999999999999997\" class=\"off\"/><polygon points=\"1.15,10.4 2.3,11.55 2.3,17.300000000000004 1.15,18.450000000000003 0,17.300000000000004 0,11.55\" class=\"off\"/><polygon points=\"10.85,10.4 12,11.55 12,17.300000000000004 10.85,18.450000000000003 9.7,17.300000000000004 9.7,11.55\" class=\"on\"/></g><g transform=\"translate(31.40 0) skewX(-5)\"><polygon points=\"1.5499999999999998,1.15 2.6999999999999997,0 9.299999999999999,0 10.45,1.15 9.299999999999999,2.3 2.6999999999999997,2.3\" class=\"on\"/><polygon points=\"1.5499999999999998,10 2.6999999999999997,8.85 9.299999999999999,8.85 10.45,10 9.299999999999999,11.15 2.6999999999999997,11.15\" class=\"on\"/><polygon points=\"1.5499999999999998,18.85 2.6999999999999997,17.700000000000003 9.299999999999999,17.700000000000003 10.45,18.85 9.299999999999999,20 2.6999999999999997,20\" class=\"on\"/><polygon points=\"1.15,1.5499999999999998 2.3,2.6999999999999997 2.3,8.45 1.15,9.6 0,8.45 0,2.6999999999999997\" class=\"off\"/><polygon points=\"10.85,1.5499999999999998 12,2.6999999999999997 12,8.45 10.85,9.6 9.7,8.45 9.7,2.6999999999999997\" class=\"on\"/><polygon points=\"1.15,10.4 2.3,11.55 2.3,17.300000000000004 1.15,18.450000000000003 0,17.300000000000004 0,11.55\" class=\"off\"/><polygon points=\"10.85,10.4 12,11.55 12,17.300000000000004 10.85,18.450000000000003 9.7,17.300000000000004 9.7,11.55\" class=\"on\"/></g><g transform=\"translate(45.80 0) skewX(-5)\"><polygon points=\"1.5499999999999998,1.15 2.6999999999999997,0 9.299999999999999,0 10.45,1.15 9.299999999999999,2.3 2.6999999999999997,2.3\" class=\"on\"/><polygon points=\"1.5499999999999998,10 2.6999999999999997,8.85 9.299999999999999,8.85 10.45,10 9.299999999999999,11.15 2.6999999999999997,11.15\" class=\"on\"/><polygon points=\"1.5499999999999998,18.85 2.6999999999999997,17.700000000000003 9.299999999999999,17.700000000000003 10.45,18.85 9.299999999999999,20 2.6999999999999997,20\" class=\"on\"/><polygon points=\"1.15,1.5499999999999998 2.3,2.6999999999999997 2.3,8.45 1.15,9.6 0,8.45 0,2.6999999999999997\" class=\"on\"/><polygon points=\"10.85,1.5499999999999998 12,2.6999999999999997 12,8.45 10.85,9.6 9.7,8.45 9.7,2.6999999999999997\" class=\"on\"/><polygon points=\"1.15,10.4 2.3,11.55 2.3,17.300000000000004 1.15,18.450000000000003 0,17.300000000000004 0,11.55\" class=\"off\"/><polygon points=\"10.85,10.4 12,11.55 12,17.300000000000004 10.85,18.450000000000003 9.7,17.300000000000004 9.7,11.55\" class=\"on\"/></g></svg><span class=\"ds-unit\">€/l</span></div></a></div>",
+      "css": ".ds-totem{background:var(--panel,oklch(19.5% 0.012 258));color:var(--panel-ink,oklch(94% 0.006 250));border-radius:var(--radius-lg,10px);padding:4px 0;box-shadow:var(--shadow,0 1px 2px oklch(20% 0.02 258 / .06),0 4px 14px -6px oklch(20% 0.02 258 / .14));overflow:hidden;font-family:'Archivo Variable', system-ui, sans-serif;max-width:380px;}.ds-totem-head{display:flex;justify-content:space-between;align-items:center;padding:10px 16px 8px;font-size:.74rem;color:var(--panel-ink-2,oklch(74% 0.012 250));letter-spacing:.03em;}.ds-plate{border:1px solid var(--panel-line,oklch(31% 0.014 258));border-radius:3px;padding:1px 6px;font-weight:600;letter-spacing:.08em;font-stretch:85%;}.ds-trow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 14px;padding:12px 16px;border-top:1px solid var(--panel-line,oklch(31% 0.014 258));color:inherit;text-decoration:none;}.ds-trow:hover{background:var(--panel-2,oklch(25% 0.014 258));}.ds-trow:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}.ds-trow-label{font-weight:560;font-stretch:90%;font-size:.95rem;line-height:1.2;}.ds-trow-label small{display:block;font-weight:420;font-size:.76rem;color:var(--panel-ink-2,oklch(74% 0.012 250));margin-top:2px;font-stretch:100%;}.ds-trow-value{display:flex;align-items:baseline;gap:6px;font-size:30px;line-height:1;}.ds-unit{font-size:.8rem;color:var(--panel-ink-2,oklch(74% 0.012 250));font-weight:560;}.ds-seg{display:block;overflow:visible;}.ds-seg .off{fill:var(--led-off,oklch(29% 0.028 70));}.ds-seg .on{fill:var(--led,oklch(83% 0.165 74));filter:drop-shadow(0 0 3px var(--led-glow,oklch(83% 0.165 74 / .45)));}"
+    },
+    {
+      "name": "Barra de pestañas",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Navegación móvil en grafito; la pestaña activa se enciende en ámbar.",
+      "html": "<nav class=\"ds-tabbar\"><a class=\"ds-tab\" href=\"#\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg>Resumen</a><a class=\"ds-tab\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"19\" r=\"3\"/><path d=\"M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15\"/><circle cx=\"18\" cy=\"5\" r=\"3\"/></svg>Viajes</a><a class=\"ds-tab\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><line x1=\"3\" x2=\"15\" y1=\"22\" y2=\"22\"/><line x1=\"4\" x2=\"14\" y1=\"9\" y2=\"9\"/><path d=\"M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18\"/><path d=\"M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5\"/></svg>Repostar</a></nav>",
+      "css": ".ds-tabbar{display:grid;grid-template-columns:repeat(3,1fr);background:var(--panel,oklch(19.5% 0.012 258));border-top:1px solid var(--panel-line,oklch(31% 0.014 258));font-family:'Archivo Variable', system-ui, sans-serif;max-width:380px;}.ds-tab{position:relative;display:grid;justify-items:center;gap:3px;padding:9px 2px 8px;color:var(--panel-ink-2,oklch(74% 0.012 250));text-decoration:none;font-size:.7rem;font-weight:520;letter-spacing:.01em;}.ds-tab:hover{color:var(--panel-ink,oklch(94% 0.006 250));}.ds-tab:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}.ds-tab[aria-current=\"page\"]{color:var(--led,oklch(83% 0.165 74));}.ds-tab[aria-current=\"page\"]::before{content:\"\";position:absolute;top:0;left:28%;right:28%;height:2px;background:var(--led,oklch(83% 0.165 74));box-shadow:0 0 8px var(--led-glow,oklch(83% 0.165 74 / .45));}"
+    },
+    {
+      "name": "Bloque",
+      "kind": "card",
+      "refersTo": "block",
+      "description": "Contenedor de papel con borde fino y filas separadas por filete.",
+      "html": "<section class=\"ds-block\"><header class=\"ds-block-head\"><h2>Pagos pendientes</h2><a href=\"#\">Ir a gastos</a></header><div class=\"ds-brow\"><span class=\"ds-who\"><i style=\"--mc:#27a078\"></i>Lucía</span><b>12,72 €</b><span class=\"ds-sub\"><span class=\"ds-code\">R-002</span> Lucía te debe</span></div></section>",
+      "css": ".ds-block{background:var(--surface,oklch(99.2% 0.002 250));border:1px solid var(--line,oklch(89% 0.005 255));border-radius:var(--radius-lg,10px);color:var(--ink,oklch(21% 0.014 258));font-family:'Archivo Variable', system-ui, sans-serif;font-size:15px;font-variant-numeric:tabular-nums;max-width:420px;}.ds-block-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;}.ds-block-head h2{margin:0;font-size:1.02rem;font-weight:620;font-stretch:92%;letter-spacing:-.012em;}.ds-block-head a{font-size:.85rem;color:var(--ink-2,oklch(43% 0.014 258));text-underline-offset:3px;}.ds-block-head a:focus-visible{outline:2px solid var(--accent-press,oklch(74% 0.16 68));outline-offset:2px;}.ds-brow{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line,oklch(89% 0.005 255));}.ds-brow:hover{background:var(--surface-2,oklch(97.4% 0.003 250));}.ds-brow b{font-weight:650;}.ds-who{display:inline-flex;align-items:center;gap:7px;font-weight:540;}.ds-who i{width:9px;height:9px;border-radius:50%;background:var(--mc);}.ds-sub{grid-column:1/-1;font-size:.82rem;color:var(--ink-2,oklch(43% 0.014 258));}.ds-code{font-weight:620;font-stretch:85%;letter-spacing:.03em;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "El tótem de la gasolinera",
+    "overview": "Las cifras que importan (lo que debes, lo que te deben, el cuentakilómetros, el último €/l) se encienden en un panel grafito como dígitos de siete segmentos ámbar, con la etiqueta a la izquierda y el número a la derecha, igual que el poste de precios de una estación de servicio. Todo lo demás es papel de trabajo: bloques claros sobre un suelo gris de poste, tablas densas, separadores de un pelo. La interfaz es un instrumento de lectura rápida para usar de pie junto al coche, no un panel de control.\n\nEl sistema tiene dos materiales y no más: el **panel** (grafito casi negro con un punto azulado, el tótem, la barra superior, el rail y la barra de pestañas) y el **papel** (superficies claras con borde fino). La luz solo existe dentro del panel: ámbar para cifras, verde para lo cobrado, rojo para lo que se debe. En modo oscuro el papel baja a grafito medio y el panel se hunde todavía más, de modo que el tótem sigue siendo lo más oscuro y lo más iluminado de la pantalla.\n\nSe rechaza explícitamente el dashboard fintech de tarjetas blancas con acento azul marino y gráficos de donut.",
+    "keyCharacteristics": [
+      "Un solo acento ámbar (LED) para cifras encendidas, la pestaña activa y la acción principal.",
+      "Dígitos SVG de siete segmentos con los segmentos apagados visibles y tenues.",
+      "Archivo Variable con numerales tabulares en toda la interfaz y anchura comprimida en títulos.",
+      "Esquinas casi rectas (6px), separadores de 1px, tablas densas.",
+      "Cada registro lleva su código secuencial (V-0042, R-007) y cada miembro su color fijo e iniciales."
+    ],
+    "rules": [
+      {
+        "name": "La Regla de la Luz Única",
+        "body": "El ámbar es la única luz del sistema. Aparece en cifras encendidas, en lo activo y en una sola acción principal por pantalla; nunca como color decorativo de texto, borde o fondo de bloque.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Semáforo Honesto",
+        "body": "Verde y rojo solo significan cobrado y debido (o válido e inválido). Una cifra en cero o sin datos se muestra en tono atenuado, nunca en verde ni en rojo por estética.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Color Propio",
+        "body": "Cada miembro tiene un color fijo (`c1`–`c5`) que se usa siempre igual: punto, avatar, barra. Ese color no se reutiliza para estados ni para categorías.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla de la Cifra Encendida",
+        "body": "Solo las cifras que deciden algo (saldo, cuentakilómetros, €/l) van en segmentos, y solo dentro del panel. En papel los números van en Archivo con numerales tabulares y peso 620–650.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Tabular",
+        "body": "`font-variant-numeric: tabular-nums` está en `body`; ninguna pieza lo desactiva.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Papel Plano",
+        "body": "Los bloques de papel nunca llevan sombra; si algo necesita destacar, va al panel.",
+        "section": "elevation"
+      },
+      {
+        "name": "La Regla del Brillo con Causa",
+        "body": "El halo solo rodea luz encendida (segmentos, pestaña activa, pulso en curso). Nada de papel brilla.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do poner saldo, cuentakilómetros y €/l en segmentos dentro de un panel grafito, etiqueta a la izquierda y cifra a la derecha.",
+      "Do dibujar siempre los segmentos apagados (`led-off`) y rellenar por la izquierda para que las cifras no bailen.",
+      "Do usar un único botón ámbar por pantalla; la acción hermana va en botón oscuro de panel.",
+      "Do acompañar cada registro de su código (V-0000, R-000) en el estilo de código y cada persona de su punto o avatar de color fijo.",
+      "Do separar con filetes de 1px y mantener las esquinas en 6px / 10px.",
+      "Do respetar `prefers-reduced-motion`: todas las animaciones y transiciones se anulan."
+    ],
+    "donts": [
+      "Don't construir el dashboard fintech de tarjetas blancas con acento azul marino y gráficos de donut.",
+      "Don't usar verde o rojo para algo que no sea cobrado / debido o válido / inválido.",
+      "Don't poner sombra a los bloques de papel ni halo a nada que no sea luz encendida.",
+      "Don't usar segmentos fuera del panel ni para cifras secundarias (importes de lista, km de viaje).",
+      "Don't reutilizar los colores de miembro para estados o categorías."
+    ]
+  }
+}

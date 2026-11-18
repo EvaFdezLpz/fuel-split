@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+const p = await b.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: 'light' });
+p.on('pageerror', (e) => console.log('pageerror', e.message));
+await p.goto('http://localhost:5173/?demo&como=marta#/perfil');
+await p.waitForTimeout(800);
+await (await p.$('#por-viajes')).screenshot({ path: '.impeccable/review/r7-trips.png' });
+await p.click('#por-viajes tbody tr');
+await p.waitForTimeout(300);
+await (await p.$('dialog[open]')).screenshot({ path: '.impeccable/review/r7-dialog.png' });
+await b.close();

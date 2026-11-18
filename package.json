@@ -1,0 +1,35 @@
+{
+  "name": "deposito-comun",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "movil": "npm run dev -- --open /simulador.html",
+    "prebuild": "node scripts/prepare-ocr.mjs",
+    "predev": "node scripts/prepare-ocr.mjs",
+    "build": "tsc --noEmit && vite build",
+    "build:demo": "tsc --noEmit && vite build --mode demo",
+    "preview": "vite preview",
+    "test": "vitest run src",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-deposito \"vitest run --config vitest.rules.config.ts\"",
+    "deploy": "npm run build && firebase deploy --only hosting,firestore",
+    "seed:members": "node scripts/seed-members.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "dompurify": "^3.4.18",
+    "firebase": "^13.3.0",
+    "lucide": "^1.73.0",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase-admin": "^14.5.1",
+    "firebase-tools": "^15.36.0",
+    "playwright-core": "^1.65.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}
