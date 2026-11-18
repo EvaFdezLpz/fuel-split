@@ -224,6 +224,10 @@ describe('fotos añadidas más tarde', () => {
     await assertFails(updateDoc(doc(as(LUIS), 'trips', 'viejo'), { start: { km: 1000, photoId: id20(1) }, updatedAt: serverTimestamp() }));
     await assertFails(updateDoc(doc(as(ANA), 'trips', 'viejo'), { start: { km: 1000, photoId: id20(1) }, updatedAt: serverTimestamp() }));
   });
+  it('ni usar como cuentakilómetros la foto de un ticket propio', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'evidence', id20(4)), { owner: LUIS, kind: 'receipt', mime: 'image/jpeg', data: JPEG, createdAt: Timestamp.now() }));
+    await assertFails(updateDoc(doc(as(LUIS), 'trips', 'viejo'), { start: { km: 1000, photoId: id20(4) }, updatedAt: serverTimestamp() }));
+  });
   it('ni cambiar una foto que ya existía', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'evidence', id20(3)), { owner: LUIS, kind: 'odometer', mime: 'image/jpeg', data: JPEG, createdAt: Timestamp.now() }));
     await env.withSecurityRulesDisabled(async (ctx) => updateDoc(doc(ctx.firestore(), 'trips', 'viejo'), { start: { km: 1000, photoId: id20(2) } }));

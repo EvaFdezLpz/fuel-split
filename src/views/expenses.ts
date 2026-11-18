@@ -101,6 +101,8 @@ export function debtCard(st: AppState, d: Debt): HTMLElement {
   const drift =
     d.kind === 'adjust'
       ? h('p', { class: 'small muted', role: 'note' }, adjustReason(st, d))
+      : d.payment && d.state === 'sent' && d.driftCents !== 0 && d.creditor === st.me.email
+        ? h('p', { class: 'small', role: 'note' }, h('span', { class: 'pill warn' }, icon('alert'), 'No cuadra'), ` Ha marcado ${fmtEur(d.payment.amountCents)} y le toca ${fmtEur(d.dueCents)}. Confirma solo lo que te haya llegado por Bizum.`)
       : d.payment && d.driftCents !== 0 && d.state === 'confirmed'
         ? h('p', { class: 'small muted', role: 'note' }, icon('swap', 13), ' El reparto cambió después del pago: la diferencia va en un ajuste aparte.')
         : null;

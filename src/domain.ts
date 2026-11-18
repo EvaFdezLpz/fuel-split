@@ -449,9 +449,7 @@ function adjustments(debts: Debt[], refuels: Refuel[], adjustsByRefuel: Map<stri
     const mine = (adjustsByRefuel.get(d.refuelId) ?? []).filter(
       (p) => (p.debtor === d.debtor && p.creditor === payer) || (p.debtor === payer && p.creditor === d.debtor),
     );
-    let net = 0; // lo que ya ha pasado en ajustes de esta persona hacia quien llenó (negativo = devuelto)
-    for (const p of mine) {
-      net += p.debtor === d.debtor ? p.amountCents : -p.amountCents;
+    for (const p of mine)
       out.push({
         kind: 'adjust',
         seq: p.seq,
@@ -467,8 +465,20 @@ function adjustments(debts: Debt[], refuels: Refuel[], adjustsByRefuel: Map<stri
         dueCents: p.amountCents,
         offsetWith: [],
       });
+    // Seguridad: solo cuenta el dinero que quien lo recibe ha confirmado. Un Bizum marcado como enviado
+    // pero sin confirmar no puede generar una deuda a favor de quien lo marcó (si no, cualquiera podría
+    // apuntar «he pagado 300 €» y la app le pediría a quien llenó que le devolviera la diferencia).
+    if (d.payment.status !== 'confirmed') continue;
+    const signed = (p: Payment) => (p.debtor === d.debtor ? p.amountCents : -p.amountCents);
+    let need = d.dueCents - d.payment.amountCents; // + = la persona debe más; − = hay que devolverle
+    for (const p of mine) if (p.status === 'confirmed') need -= signed(p);
+    // Los ajustes enviados (aún sin confirmar) en el sentido correcto cubren lo que falta, nunca más.
+    for (const p of mine) {
+      if (p.status !== 'sent' || Math.sign(signed(p)) !== Math.sign(need)) continue;
+      const take = Math.sign(need) * Math.min(Math.abs(signed(p)), Math.abs(need));
+      need -= take;
     }
-    const remaining = d.dueCents - d.payment.amountCents - net;
+    const remaining = need;
     if (Math.abs(remaining) < 1) continue;
     const all = adjustsByRefuel.get(d.refuelId) ?? [];
     const seq = Math.max(0, ...all.map((p) => p.seq ?? 0), ...out.filter((x) => x.refuelId === d.refuelId).map((x) => x.seq ?? 0)) + 1;

@@ -39,9 +39,13 @@ service cloud.firestore {
     function evidencePath(id) {
       return /databases/$(database)/documents/evidence/$(id);
     }
-    // Una foto solo puede usarla quien la subió (evita "tomar prestada" la evidencia de otro).
+    // Una foto del cuentakilómetros solo puede usarla quien la subió (evita "tomar prestada" la evidencia
+    // de otro) y tiene que ser de ese tipo (no vale la foto de un ticket).
     function ownEvidence(id) {
-      return id == null || (isDocId(id) && get(evidencePath(id)).data.owner == me());
+      return id == null
+        || (isDocId(id)
+            && get(evidencePath(id)).data.owner == me()
+            && get(evidencePath(id)).data.kind == 'odometer');
     }
     function reading(r, kmRequired) {
       return r is map

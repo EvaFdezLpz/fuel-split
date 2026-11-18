@@ -15,10 +15,22 @@ await p2.waitForTimeout(800);
 const tt = await p2.evaluate(() => {
   const d = document.createElement('div');
   d.innerHTML = '<img src=x onerror="window.__pwned=1"><b>ok</b>';
-  let evalBlocked = false;
-  try { eval('1'); } catch { evalBlocked = true; }
-  return { sanitized: d.innerHTML, evalBlocked };
+  return { sanitized: d.innerHTML };
 });
+// eval dentro de page.evaluate no sirve (las DevTools se saltan la CSP): se prueba en una tarea normal de la página.
+tt.evalBlocked = await p2.evaluate(
+  () =>
+    new Promise((res) =>
+      setTimeout(() => {
+        try {
+          (0, eval)('1');
+          res(false);
+        } catch {
+          res(true);
+        }
+      }),
+    ),
+);
 console.log('Trusted Types default policy:', JSON.stringify(tt));
 // 3) OCR en dev
 const p3 = await ctx.newPage();

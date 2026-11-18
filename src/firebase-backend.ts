@@ -17,6 +17,8 @@ import {
   doc,
   getDoc,
   initializeFirestore,
+  terminate,
+  clearIndexedDbPersistence,
   onSnapshot,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -197,6 +199,14 @@ export function createFirebaseBackend(): Backend {
 
     async signOut() {
       await fbSignOut(auth);
+      // Borra la copia local (viajes, pagos, fotos) para que no quede nada en un dispositivo prestado.
+      try {
+        await terminate(db);
+        await clearIndexedDbPersistence(db);
+      } catch {
+        /* si otra pestaña la tiene abierta, se borrará al cerrarla; la sesión ya está cerrada */
+      }
+      location.reload();
     },
 
     subscribe(cb, onError) {

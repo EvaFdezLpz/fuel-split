@@ -179,3 +179,29 @@ describe('ajustes cuando un viaje se apunta tarde', () => {
     expect(adj).toMatchObject({ debtor: 'ana', creditor: 'luis', dueCents: 1500 });
   });
 });
+
+describe('ajustes: nadie puede inflar lo que dice haber pagado', () => {
+  const trip = (id: string, driver: string, a: number, b: number): Trip => ({ id, driver, date: a, start: { km: a, photoId: 'p' }, end: { km: b, photoId: 'p' }, note: '', createdAt: a });
+  const refuel: Refuel = { id: 'r1', payer: 'ana', date: 500, amountCents: 6000, priceMilli: 1500, odometerKm: 400, odometerPhotoId: 'p', receiptPhotoId: 'p', note: '', createdAt: 500 };
+  const trips = [trip('t1', 'ana', 0, 200), trip('t2', 'luis', 200, 400)]; // Luis debe 3000
+  const share = (amount: number, status: Payment['status']): Payment => ({ id: paymentId('r1', 'luis'), refuelId: 'r1', debtor: 'luis', creditor: 'ana', amountCents: amount, status, sentAt: 1, confirmedAt: status === 'confirmed' ? 2 : null });
+  const adj = (debtor: string, creditor: string, amount: number, status: Payment['status'], seq = 1): Payment => ({ id: adjustPaymentId('r1', debtor, creditor, seq), refuelId: 'r1', debtor, creditor, amountCents: amount, status, sentAt: 3, confirmedAt: status === 'confirmed' ? 4 : null, kind: 'adjust', seq });
+
+  it('un Bizum sin confirmar por un importe inflado no crea deuda a su favor', () => {
+    const l = buildLedger(trips, [refuel], [share(30000, 'sent')]);
+    expect(l.debts.filter((d) => d.kind === 'adjust')).toHaveLength(0);
+    expect(balanceFor(l, 'ana').owes).toBe(0);
+  });
+
+  it('un ajuste inventado sin confirmar no hace que le deban dinero', () => {
+    const l = buildLedger(trips, [refuel], [share(3000, 'confirmed'), adj('luis', 'ana', 30000, 'sent')]);
+    expect(l.debts.filter((d) => d.kind === 'adjust' && d.state === 'pending')).toHaveLength(0);
+    expect(balanceFor(l, 'ana').owes).toBe(0);
+  });
+
+  it('un ajuste enviado correcto no se pide dos veces', () => {
+    const l = buildLedger([...trips, trip('t3', 'luis', 400, 600)], [{ ...refuel, odometerKm: 600 }], [share(3000, 'confirmed'), adj('luis', 'ana', 1000, 'sent')]);
+    // Ahora Luis: 400 de 600 km → 4000; pagó 3000 y ha enviado 1000 de ajuste: no queda nada pendiente.
+    expect(l.debts.filter((d) => d.kind === 'adjust' && d.state === 'pending')).toHaveLength(0);
+  });
+});
