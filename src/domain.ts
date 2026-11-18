@@ -29,6 +29,10 @@ export interface Trip {
   addedBy?: string | null;
   /** Quiénes de los que no lo apuntaron han confirmado que es correcto. */
   confirmed?: string[];
+  /** Fecha y hora de llegada (si se apuntó al terminar). `date` es la de salida. */
+  endDate?: number | null;
+  /** 'survey': no es un viaje guardado, sale de las respuestas a unos km misterio. */
+  source?: 'survey';
 }
 
 /** Quienes hicieron un viaje (conductor y acompañantes), sin repetir. */
@@ -171,6 +175,27 @@ export interface Ledger {
 
 export const MAX_KM = 2_000_000;
 export const MAX_TRIP_KM = 3_000;
+
+/**
+ * Viaje en curso de una persona que un repostaje a `km` parte en dos: empezó antes de ese km
+ * (y no tan lejos como para ser un error). Al repostar se termina ahí y empieza otro desde ese km.
+ */
+export function openTripAt(trips: Trip[], email: string, km: number): Trip | null {
+  // Solo cuenta si de verdad sigue abierto: si hay un viaje posterior, su final ya se toma del inicio de ese.
+  const later = (t: Trip) => trips.some((x) => x.id !== t.id && x.start.km != null && x.start.km > t.start.km!);
+  const open = trips.filter((t) => t.driver === email && t.end.km == null && t.start.km != null && t.start.km < km && km - t.start.km <= MAX_TRIP_KM && !later(t));
+  // Si hubiera más de uno (no debería), el más reciente por km.
+  return open.sort((a, b) => b.start.km! - a.start.km!)[0] ?? null;
+}
+
+/** Los viajes tal como quedan al partir el viaje en curso en el km del repostaje (para la vista previa). */
+export function splitTripsAt(trips: Trip[], open: Trip, km: number, date: number): Trip[] {
+  return [
+    ...trips.filter((t) => t.id !== open.id),
+    { ...open, end: { km, photoId: null } },
+    { ...open, id: `${open.id}__sigue`, date, start: { km, photoId: null }, end: { km: null, photoId: null }, confirmed: [] },
+  ];
+}
 export const TANK_LITERS = 47; // Citroën C3 (2005)
 
 export function paymentId(refuelId: string, debtor: string): string {
@@ -236,6 +261,7 @@ export function buildLedger(
   }
   for (const r of refuels) if (r.odometerPhotoId) photoKm.add(r.odometerKm);
 
+  // Solo hay un coche: un viaje sin km final termina donde empieza el viaje siguiente.
   const views: TripView[] = trips.map((trip, i) => {
     // Nombre legible: «viaje de Marta del 5 nov». Sustituye a los códigos V-0001.
     const code = `viaje de ${nameOf(trip.driver)} del ${shortDay(trip.date)}`;
@@ -268,7 +294,7 @@ export function buildLedger(
         who: v.trip.driver,
       });
     }
-    if (v.startState === 'manual' || v.endState === 'manual') {
+    if (v.trip.source !== 'survey' && (v.startState === 'manual' || v.endState === 'manual')) {
       const which = v.startState === 'manual' && v.endState === 'manual' ? 'inicio y final' : v.startState === 'manual' ? 'inicio' : 'final';
       issues.push({
         kind: 'manual',
@@ -649,4 +675,131 @@ export function fmtLiters(milli: number): string {
 }
 export function fmtInt(n: number): string {
   return int.format(n);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Km misterio: km entre dos fotos del cuentakilómetros que nadie apuntó. Se pregunta a todos si
+// usaron el coche en esas fechas y cuántos km hicieron. Cuando han respondido todos (o lo que dicen
+// suma justo los km del hueco), cada uno paga sus km y la diferencia se reparte a partes iguales
+// entre quienes dijeron que sí.
+// ---------------------------------------------------------------------------------------------
+
+export interface GapAnswer {
+  id: string;
+  fromKm: number;
+  toKm: number;
+  member: string;
+  used: boolean;
+  /** Km que dice haber hecho (0 si no lo usó). */
+  km: number;
+  /** Día en que lo usó (AAAA-MM-DD), o null. */
+  day: string | null;
+  createdAt: number;
+}
+
+export const gapAnswerId = (fromKm: number, toKm: number, email: string) => `${fromKm}-${toKm}__${email}`;
+
+export interface MysteryGap {
+  fromKm: number;
+  toKm: number;
+  km: number;
+  /** Viaje que acabó en `fromKm` y viaje que empezó en `toKm`. */
+  after: TripView;
+  before: TripView;
+  answers: GapAnswer[];
+  /** Quienes aún no han respondido. */
+  pending: string[];
+  /** Km que suman los que dicen que sí. */
+  claimedKm: number;
+  /** Ya se puede repartir: han respondido todos o lo dicho suma justo el hueco (y alguien dijo que sí). */
+  resolved: boolean;
+  /** Km finales de cada uno, con la diferencia ya repartida (solo si está resuelto). */
+  allocation: { email: string; km: number; day: string | null }[];
+}
+
+/**
+ * Reparte la diferencia entre los km del hueco y los que dice cada uno, a partes iguales y en km
+ * enteros. Si dicen de más, se quita a partes iguales (sin bajar de 0).
+ */
+export function allocateGap<T extends { km: number }>(total: number, claims: T[]): T[] {
+  const out = claims.map((c) => ({ ...c }));
+  let rest = total - out.reduce((a, c) => a + c.km, 0);
+  for (let guard = 0; rest !== 0 && guard < 100; guard++) {
+    const act = rest > 0 ? out : out.filter((c) => c.km > 0);
+    if (!act.length) break;
+    const sign = Math.sign(rest);
+    const abs = Math.abs(rest);
+    const base = Math.floor(abs / act.length);
+    const extra = abs % act.length;
+    act.forEach((c, i) => {
+      const want = base + (i < extra ? 1 : 0);
+      const take = sign > 0 ? want : Math.min(want, c.km);
+      c.km += sign * take;
+      rest -= sign * take;
+    });
+  }
+  return out;
+}
+
+/** Huecos entre viajes con sus respuestas, del más antiguo al más reciente. */
+export function mysteryGaps(ledger: Ledger, answers: GapAnswer[], members: string[]): MysteryGap[] {
+  const out: MysteryGap[] = [];
+  const ts = ledger.trips;
+  for (let i = 0; i + 1 < ts.length; i++) {
+    const v = ts[i];
+    const next = ts[i + 1];
+    if (v.endKm == null || v.endState === 'inferred' || v.endState === 'open' || next.trip.start.km == null) continue;
+    const fromKm = v.endKm;
+    const toKm = next.trip.start.km;
+    if (toKm <= fromKm) continue;
+    const mine = answers.filter((a) => a.fromKm === fromKm && a.toKm === toKm && members.includes(a.member));
+    const yes = mine
+      .filter((a) => a.used && a.km > 0)
+      .sort((a, b) => (a.day ?? '').localeCompare(b.day ?? '') || a.member.localeCompare(b.member));
+    const claimedKm = yes.reduce((a, x) => a + x.km, 0);
+    const km = toKm - fromKm;
+    const pending = members.filter((e) => !mine.some((a) => a.member === e));
+    const resolved = yes.length > 0 && (pending.length === 0 || claimedKm === km);
+    out.push({
+      fromKm,
+      toKm,
+      km,
+      after: v,
+      before: next,
+      answers: mine,
+      pending,
+      claimedKm,
+      resolved,
+      allocation: resolved ? allocateGap(km, yes.map((a) => ({ email: a.member, km: a.km, day: a.day }))) : [],
+    });
+  }
+  return out;
+}
+
+/** Los km de un hueco resuelto como viajes (uno por persona, seguidos), para repartir el depósito. */
+export function gapTrips(g: MysteryGap): Trip[] {
+  const out: Trip[] = [];
+  let km = g.fromKm;
+  const a = g.after.trip.endDate ?? g.after.trip.date;
+  const b = Math.max(g.before.trip.date, a);
+  for (const x of g.allocation) {
+    if (x.km <= 0) continue;
+    const day = x.day ? new Date(`${x.day}T12:00:00`).getTime() : NaN;
+    const date = Number.isFinite(day) ? Math.min(Math.max(day, a), b) : Math.round((a + b) / 2);
+    out.push({
+      id: `misterio-${g.fromKm}-${g.toKm}-${x.email}`,
+      driver: x.email,
+      date,
+      start: { km, photoId: null },
+      end: { km: km + x.km, photoId: null },
+      note: 'Km misterio: según lo que respondió',
+      createdAt: date,
+      with: [],
+      addedBy: null,
+      confirmed: [],
+      source: 'survey',
+    });
+    km += x.km;
+  }
+  return out;
 }

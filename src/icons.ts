@@ -1,5 +1,6 @@
 import {
   ArrowRightLeft,
+  Bell,
   Camera,
   Check,
   CalendarCheck,
@@ -42,6 +43,7 @@ import {
 
 const set = {
   swap: ArrowRightLeft,
+  bell: Bell,
   camera: Camera,
   check: Check,
   calendar: CalendarDays,

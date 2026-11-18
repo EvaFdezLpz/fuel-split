@@ -47,6 +47,7 @@ Para añadir o quitar personas, edita `members.json` y vuelve a ejecutar `npm ru
 - **Viajes juntos**: al apuntar un viaje se puede marcar **¿Iba alguien más?**. Los km se reparten a partes iguales entre todos los que iban. Cada acompañante lo ve en su Resumen y puede confirmarlo o pulsar **No iba**, y su parte vuelve a los demás.
 - **Foto olvidada**: cada uno puede añadir la foto que falte a sus viajes en cualquier momento. Pasada una semana solo se puede añadir la foto; los km y la fecha ya no se cambian.
 - **Repostaje sin apuntar**: si en un tramo salen muy pocos litros para los km (menos de 4 l/100 km), el Resumen avisa de que puede faltar un repostaje. Quien llenó lo apunta en Repostar con los km de ese día: la app lo reconoce como repostaje olvidado, pide la fecha real y lo coloca entre los depósitos de alrededor.
+- **Repostar con un viaje en curso**: si quien reposta tiene un viaje sin terminar, al guardar el repostaje ese viaje se termina en el km del repostaje (con su foto) y empieza otro desde ahí, con los mismos acompañantes. Se guarda todo junto o nada. Así cada depósito paga sus km desde el primer momento, sin ajustes después. Si el viaje sin terminar es de otra persona, solo se avisa: nadie puede cerrar el viaje de otro.
 - **Ajustes**: si un viaje o repostaje apuntado tarde cambia un reparto que ya estaba pagado, la app calcula la diferencia y la pide (o la devuelve quien llenó el depósito) con un **Bizum de ajuste**, que se confirma igual que los demás.
 
 ## Cómo se calcula

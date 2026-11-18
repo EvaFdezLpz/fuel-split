@@ -90,16 +90,51 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
   const end = readingField(st, {
     id: 'end',
     title: 'Al terminar',
-    hint: p || photoOnly ? null : 'Si aún no has llegado, guárdalo así y complétalo al aparcar. Si se te olvida, se tomará del siguiente viaje.',
+    hint: null,
     km: t?.end.km ?? p?.endKm ?? null,
     photoId: t?.end.photoId ?? null,
     expected: () => start.km() ?? last?.km ?? null,
-    optional: true,
+    optional: !isFinishing && !!t,
   });
-  const note = h('textarea', { class: 'input', id: 'trip-note', maxlength: 280, placeholder: 'Opcional: destino, incidencias…' }, t?.note ?? (p ? 'Apuntado más tarde' : ''));
+  // Fecha y hora de llegada: con el km final. Por defecto, ahora (o la que ya tenía).
+  const arrive = h('input', {
+    class: 'input',
+    type: 'datetime-local',
+    id: 'trip-arrive',
+    // Un viaje ya terminado sin llegada apuntada se deja vacío (no se inventa la hora).
+    value: t?.endDate ? localInputValue(t.endDate) : t?.end.km != null ? '' : localInputValue(p ? p.date : Date.now()),
+    max: localInputValue(Date.now() + 3600_000),
+  });
+  const arriveErr = h('div', { class: 'error', role: 'alert' });
+  const arriveField = h('div', { class: 'field reading-date' }, h('label', { for: 'trip-arrive' }, 'Llegada'), arrive, arriveErr);
+  end.row.append(arriveField);
+  const dateField = h('div', { class: 'field reading-date' }, h('label', { for: 'trip-date' }, 'Salida'), date);
+  start.row.append(dateField);
+  // Al terminar un viaje en curso, el inicio ya está: se resume en una línea (y se puede editar).
+  const startSummary = isFinishing && t
+    ? (() => {
+        const editBtn = h('button', { class: 'gm-link', type: 'button' }, 'Editar');
+        const line = h(
+          'div',
+          { class: 'start-summary' },
+          h('span', { class: 'small muted' }, 'Salida'),
+          h('b', { class: 'num' }, `${fmtKm(t.start.km ?? 0)}`),
+          h('span', { class: 'small muted num' }, `${dayMonth(t.date)} · ${new Date(t.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}${t.start.photoId ? ' · con foto' : ' · sin foto'}`),
+          editBtn,
+        );
+        start.el.setAttribute('hidden', '');
+        editBtn.addEventListener('click', () => {
+          start.el.removeAttribute('hidden');
+          line.remove();
+        });
+        return line;
+      })()
+    : null;
+  arrive.addEventListener('input', () => (arriveErr.textContent = ''));
+  const note = h('textarea', { class: 'input', id: 'trip-note', rows: 2, maxlength: 280, placeholder: 'Opcional: destino, incidencias…' }, t?.note ?? (p ? 'Apuntado más tarde' : ''));
   // Viaje antiguo: todo bloqueado salvo las fotos que falten.
   if (photoOnly) {
-    for (const el of [date, start.input, end.input, note]) el.disabled = true;
+    for (const el of [date, start.input, end.input, note, arrive]) el.disabled = true;
     for (const r of [start, end]) if (r.photo.existingId()) (r.el.querySelector('.photo-menu-wrap') as HTMLElement | null)?.setAttribute('hidden', '');
   }
   // Quién conducía: solo al apuntar km olvidados («Fui yo» / «Fue otro»). Un viaje normal es siempre tuyo.
@@ -112,7 +147,7 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     exclude: driver,
     onChange: () => refresh(),
   });
-  const withHint = h('p', { class: 'hint' }, 'Si ibais varios en el mismo viaje, marca quiénes: los km se reparten a partes iguales. Cada uno lo verá y podrá confirmarlo.');
+  const withHint = h('p', { class: 'hint' }, 'Los km se reparten a partes iguales; cada uno lo confirmará.');
   const otherNote = h('p', { class: 'notice', hidden: true }, icon('info'), h('span', null, 'Lo apuntas por otra persona: verá el aviso y podrá confirmarlo o borrarlo. Las fotos solo las añade quien conducía.'));
   const syncDriver = () => {
     const other = driver() != null && driver() !== st.me.email;
@@ -123,6 +158,41 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
   const summary = h('div', { class: 'calc', 'aria-live': 'polite' });
   const formErr = h('div', { class: 'error', role: 'alert' });
 
+  // Viaje nuevo: primero se elige si se termina ahora o más tarde. Más tarde: se guarda solo el inicio.
+  const askLater = !t && !p;
+  let later = askLater;
+  const laterBtn = h('button', { type: 'button', 'aria-pressed': 'true' }, icon('route', 15), 'Lo termino más tarde');
+  const nowBtn = h('button', { type: 'button', 'aria-pressed': 'false' }, icon('check', 15), 'Ya he llegado');
+  const laterHint = h('p', { class: 'hint' });
+  const whenEnd = askLater
+    ? h(
+        'div',
+        { class: 'field' },
+        h('span', { class: 'label', id: 'trip-when-label' }, '¿Terminas el viaje ahora?'),
+        h('div', { class: 'seg-control seg-wide', role: 'group', 'aria-labelledby': 'trip-when-label' }, laterBtn, nowBtn),
+        laterHint,
+      )
+    : null;
+  const syncLater = () => {
+    if (!askLater) return;
+    laterBtn.setAttribute('aria-pressed', String(later));
+    nowBtn.setAttribute('aria-pressed', String(!later));
+    end.el.toggleAttribute('hidden', later);
+    // Si ya ha llegado, el final no es opcional.
+    (end.el.querySelector('.reading-head .pill') as HTMLElement | null)?.setAttribute('hidden', '');
+    laterHint.textContent = later
+      ? 'Se guarda solo el inicio. Al aparcar, abre el viaje y pulsa «Terminar viaje» para poner el km y la foto finales.'
+      : '';
+    if (later) {
+      end.input.value = '';
+      end.setError(null);
+    }
+    save.replaceChildren(icon('check'), later ? 'Empezar viaje' : 'Guardar viaje');
+    refresh();
+  };
+  laterBtn.addEventListener('click', () => ((later = true), syncLater()));
+  nowBtn.addEventListener('click', () => ((later = false), syncLater(), setTimeout(() => end.input.focus(), 30)));
+
   const refresh = () => {
     const a = start.km();
     const b = end.km();
@@ -130,7 +200,7 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     const n = 1 + withPick.get().length;
     if (a != null && !Number.isNaN(a) && b != null && !Number.isNaN(b) && b >= a)
       lines.push(h('div', null, 'Recorrido: ', h('b', { class: 'num' }, fmtKm(b - a)), n > 1 ? ` · ${fmtKmShare((b - a) / n)} para cada uno de los ${n}` : ''));
-    else lines.push(h('div', { class: 'muted' }, 'El recorrido se calcula con las dos lecturas.'));
+    else summary.setAttribute('hidden', '');
     if (!t && !p && last && a != null && !Number.isNaN(a) && a !== last.km) {
       const diff = a - last.km;
       if (diff > 0) lines.push(h('div', { class: 'small' }, `Hay ${fmtKm(diff)} desde el último registro que nadie ha apuntado; quedará marcado como hueco.`));
@@ -148,6 +218,7 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
       }
     }
     summary.replaceChildren(...lines);
+    summary.toggleAttribute('hidden', !lines.length);
   };
   start.input.addEventListener('input', refresh);
   end.input.addEventListener('input', refresh);
@@ -155,13 +226,15 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
   syncDriver();
 
   const save = h('button', { class: 'btn primary', type: 'submit' }, icon('check'), isFinishing ? 'Terminar viaje' : photoOnly ? 'Guardar foto' : t ? 'Guardar cambios' : 'Guardar viaje');
+  syncLater();
   const form = h(
     'form',
     { class: 'form', novalidate: true },
     driverPick?.el ?? null,
     otherNote,
-    h('div', { class: 'field' }, h('label', { for: 'trip-date' }, 'Fecha y hora de salida'), date),
+    startSummary,
     start.el,
+    whenEnd,
     end.el,
     withPick.el,
     photoOnly ? null : withHint,
@@ -186,6 +259,10 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
       formErr.textContent = 'Elige quién conducía.';
       return;
     }
+    if (askLater && !later && b == null) {
+      end.setError('Pon el km final, o elige «Lo termino más tarde».');
+      ok = false;
+    }
     if (forOther && b == null) {
       end.setError('Pon el km final: el viaje es de otra persona y no lo podrá terminar ella.');
       ok = false;
@@ -208,6 +285,15 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
     }
     if (!Number.isFinite(when) || when > Date.now() + 3600_000) {
       formErr.textContent = 'La fecha no es válida.';
+      ok = false;
+    }
+    // Llegada: solo cuenta si hay km final.
+    const arriveAt = b != null && arrive.value ? new Date(arrive.value).getTime() : null;
+    if (arriveAt != null && (!Number.isFinite(arriveAt) || arriveAt > Date.now() + 3600_000)) {
+      arriveErr.textContent = 'La fecha de llegada no es válida.';
+      ok = false;
+    } else if (arriveAt != null && Number.isFinite(when) && arriveAt < when) {
+      arriveErr.textContent = 'La llegada no puede ser antes de la salida.';
       ok = false;
     }
     // Corregir una lectura ya guardada exige foto: es la prueba de la cifra buena.
@@ -240,6 +326,7 @@ export function tripFormView(st: AppState, tripId: string | null): Node {
         endKm: b,
         endPhotoId: forOther ? null : endPhotoId,
         note: note.value.trim().slice(0, 280),
+        endDate: photoOnly ? (t?.endDate ?? null) : arriveAt,
         // Al añadir solo una foto o si no cambian los acompañantes, no se toca la lista.
         with: photoOnly || sameWith ? undefined : withList,
       };

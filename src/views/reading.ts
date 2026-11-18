@@ -99,6 +99,8 @@ export function photoPicker(st: AppState, opts: { id: string; label: string; exi
 
 export interface ReadingField {
   el: HTMLElement;
+  /** Fila de km (se le puede añadir la fecha para que vaya al lado). */
+  row: HTMLElement;
   input: HTMLInputElement;
   photo: PhotoPicker;
   km(): number | null;
@@ -126,7 +128,7 @@ export function readingField(
     id: `${opts.id}-km`,
     inputmode: 'numeric',
     autocomplete: 'off',
-    placeholder: opts.optional ? 'Pendiente' : 'Ej. 182.450',
+    placeholder: opts.optional ? 'Pendiente' : '182.450',
     value: opts.km != null ? groupThousands(opts.km) : '',
     'aria-describedby': `${opts.id}-err`,
   });
@@ -188,16 +190,26 @@ export function readingField(
     if (v != null && !Number.isNaN(v)) input.value = groupThousands(v);
   });
 
+  const row = h(
+    'div',
+    { class: 'reading-row' },
+    h('div', { class: 'field reading-km' }, h('label', { for: `${opts.id}-km` }, 'Kilómetros'), h('div', { class: 'input-unit' }, input, h('span', null, 'km'))),
+  );
   const el = h(
     'fieldset',
     { class: 'reading' },
     h('div', { class: 'reading-head' }, h('legend', { class: 'label' }, opts.title), opts.optional ? h('span', { class: 'pill neutral' }, 'Opcional') : null),
     opts.hint ? h('div', { class: 'hint' }, opts.hint) : null,
+    row,
     photo.el,
-    h('div', { class: 'field' }, h('label', { for: `${opts.id}-km` }, 'Kilómetros'), h('div', { class: 'input-unit' }, input, h('span', null, 'km')), ocr, correction, err),
+    ocr,
+    correction,
+    err,
   );
   return {
     el,
+    /** Fila de km: se le pueden añadir otros campos (la fecha) para que vayan en la misma línea. */
+    row,
     input,
     photo,
     km: () => parseKm(input.value),

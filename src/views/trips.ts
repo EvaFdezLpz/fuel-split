@@ -34,6 +34,7 @@ export function tripRow(st: AppState, v: TripView) {
         h('span', { class: 'strong' }, mine ? `${m.name} (tú)` : m.name),
         t.with?.length ? h('span', { class: 'small muted with-tag' }, icon('users', 13), `con ${t.with.map((e) => memberOf(st, e).name).join(', ')}`) : null,
         t.addedBy ? h('span', { class: 'pill neutral' }, `Apuntado por ${memberOf(st, t.addedBy).name}`) : null,
+        t.source === 'survey' ? h('span', { class: 'pill neutral' }, 'Km misterio') : null,
       ),
       h(
         'span',
@@ -73,8 +74,10 @@ export function tripDetail(st: AppState, v: TripView) {
       { class: 'kv' },
       h('dt', null, 'Conductor'),
       h('dd', null, who(st, t.driver)),
-      h('dt', null, 'Fecha'),
+      h('dt', null, t.endDate ? 'Salida' : 'Fecha'),
       h('dd', null, fmtDate(t.date, true)),
+      t.endDate ? h('dt', null, 'Llegada') : null,
+      t.endDate ? h('dd', null, fmtDate(t.endDate, true)) : null,
       h('dt', null, 'Km inicial'),
       h('dd', { class: 'num kv-ev' }, evidencePill(v.startState, '', photoBtn(t.start.photoId, 'km inicial')), fmtKm(t.start.km ?? 0)),
       h('dt', null, 'Km final'),
@@ -92,14 +95,17 @@ export function tripDetail(st: AppState, v: TripView) {
       const waiting = riders(t).filter((e) => needsConfirmation(t, e));
       return waiting.length ? h('p', { class: 'small muted' }, `Falta que lo confirme: ${waiting.map((e) => memberOf(st, e).name).join(', ')}.`) : null;
     })(),
+    t.source === 'survey'
+      ? h('p', { class: 'notice' }, icon('route'), h('span', null, 'Km misterio: no hubo foto. Son los km que dijo al responder, con la diferencia del hueco repartida a partes iguales entre quienes lo usaron. Para cambiarlo, cambia la respuesta en Viajes → Km misterio.'))
+      : null,
     v.endState === 'inferred' ? h('p', { class: 'notice' }, icon('swap'), h('span', null, `No se registró el km final. Se toma el inicio del siguiente viaje: ${fmtKm(v.endKm ?? 0)}.`)) : null,
     t.note ? h('p', { class: 'muted' }, t.note) : null,
   ];
   const foot: Node[] = [];
   const close = () => d.close();
-  foot.push(...confirmActions(st, v, close));
+  if (t.source !== 'survey') foot.push(...confirmActions(st, v, close));
   const byOther = !!t.addedBy && t.addedBy !== st.me.email;
-  if (!mine && t.addedBy === st.me.email && Date.now() - t.createdAt < 24 * 3600_000) {
+  if (t.source !== 'survey' && !mine && t.addedBy === st.me.email && Date.now() - t.createdAt < 24 * 3600_000) {
     const undo = h('button', { class: 'btn ghost danger sm', type: 'button' }, icon('trash'), 'Borrar');
     undo.addEventListener('click', async () => {
       if (!confirm('¿Borrar el viaje que apuntaste? Solo se puede en las primeras 24 h.')) return;
@@ -115,7 +121,7 @@ export function tripDetail(st: AppState, v: TripView) {
     });
     foot.push(undo);
   }
-  if (mine && !byOther) {
+  if (mine && !byOther && t.source !== 'survey') {
     const del = h('button', { class: 'btn ghost danger sm', type: 'button' }, icon('trash'), 'Borrar');
     del.addEventListener('click', async () => {
       if (!confirm(`¿Borrar el ${v.code}? Solo se puede en las 24 h siguientes a crearlo.`)) return;

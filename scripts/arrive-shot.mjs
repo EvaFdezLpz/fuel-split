@@ -1,0 +1,18 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+const p = await b.newPage({ viewport: { width: 390, height: 900 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+p.on('pageerror', (e) => console.log('pageerror', e.message));
+p.on('dialog', (d) => d.accept());
+await p.goto('http://localhost:5173/?demo&como=pablo#/viajes/nuevo'); await p.waitForTimeout(900);
+console.log('más tarde, llegada visible:', await p.$eval('#trip-arrive', (e) => e.offsetParent !== null));
+await p.click('button:has-text("Ya he llegado")'); await p.waitForTimeout(200);
+console.log('ya he llegado, llegada visible:', await p.$eval('#trip-arrive', (e) => e.offsetParent !== null));
+await p.fill('#end-km', '182790').catch(async () => { const i = await p.$$('.reading .input.big'); await i[1].fill('182790'); });
+const dep = await p.$eval('#trip-date', (e) => e.value);
+const d = new Date(dep); d.setHours(d.getHours() - 2);
+const pad = (n) => String(n).padStart(2, '0');
+await p.fill('#trip-arrive', `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+await p.click('form button[type=submit]'); await p.waitForTimeout(400);
+console.log('llegada antes de salida:', await p.$$eval('.error', (e) => e.map((x) => x.textContent).filter(Boolean)));
+await (await p.$('form')).screenshot({ path: '.impeccable/review/arrive.png' });
+await b.close();

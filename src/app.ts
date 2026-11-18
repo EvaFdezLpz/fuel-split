@@ -13,6 +13,7 @@ import { themeToggle } from './theme';
 import { calendarView } from './views/calendar';
 import { statsView } from './views/stats';
 import { reservationFormView, reservationsView } from './views/reservations';
+import { noticeCount, noticesView } from './views/notices';
 
 const NAV: { href: string; label: string; short: string; icon: IconName; match: RegExp; tab?: false }[] = [
   { href: '#/', label: 'Resumen', short: 'Resumen', icon: 'home', match: /^\/?$/ },
@@ -101,6 +102,7 @@ function route(st: AppState, path: string, rerender: () => void): Node {
   if ((m = path.match(/^\/reservas\/([A-Za-z0-9]{1,40})$/)) && st.snap.reservations.some((r) => r.id === m![1])) return reservationsView(st, rerender, m[1]);
   if (path === '/repostajes/nuevo') return refuelFormView(st);
   if (path === '/gastos') return expensesView(st, rerender);
+  if (path === '/avisos') return noticesView(st, rerender);
   if (path === '/perfil') return profileView(st, st.me.email, rerender);
   if ((m = path.match(/^\/perfil\/([^/]{3,254})$/))) {
     let email = '';
@@ -129,16 +131,26 @@ function shell(st: AppState, content: Node) {
   const signOutRail = h('button', { class: 'btn dark sm rail-out', type: 'button', title: 'Cerrar sesión' }, icon('logout'), h('span', { class: 'nav-label' }, 'Cerrar sesión'));
   signOutRail.addEventListener('click', () => st.backend.signOut());
   signOut.classList.add('only-mobile');
+  // Campana de avisos: el número es lo que pide respuesta (confirmar viajes, km misterio, repostajes que faltan).
+  const count = noticeCount(st);
+  const onNotices = /^\/avisos/.test(path);
+  const bell = (cls: string, withLabel: boolean) =>
+    h(
+      'a',
+      { class: cls, href: '#/avisos', 'aria-current': onNotices ? 'page' : null, 'aria-label': count ? `Avisos: ${count} pendientes` : 'Avisos', title: withLabel ? null : 'Avisos' },
+      h('span', { class: 'bell-ic' }, icon('bell', withLabel ? 18 : 20), count ? h('span', { class: 'bell-badge num', 'aria-hidden': 'true' }, count > 9 ? '9+' : String(count)) : null),
+      withLabel ? h('span', { class: 'nav-label' }, 'Avisos') : null,
+    );
 
   return h(
     'div',
     { class: 'shell' },
-    h('header', { class: 'topbar' }, brand(false), h('span', { class: 'spacer' }), themeToggle(false, 'btn ghost sm only-mobile theme-btn'), avatar(st.me, false, '#/perfil'), signOut),
+    h('header', { class: 'topbar' }, brand(false), h('span', { class: 'spacer' }), bell('btn ghost sm bell-btn', false), themeToggle(false, 'btn ghost sm only-mobile theme-btn'), avatar(st.me, false, '#/perfil'), signOut),
     h(
       'aside',
       { class: 'rail', 'aria-label': 'Navegación' },
       h('div', { class: 'rail-head' }, brand(), railToggle()),
-      h('nav', null, NAV.map((n) => navItem(n, 'navlink', false))),
+      h('nav', null, NAV.slice(0, 1).map((n) => navItem(n, 'navlink', false)), bell('navlink', true), NAV.slice(1).map((n) => navItem(n, 'navlink', false))),
       h(
         'div',
         { class: 'bottom' },

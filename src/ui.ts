@@ -17,7 +17,7 @@ export function dayMonth(ms: number): string {
  * Nombre legible de un tramo (los km que paga un depósito): cuándo se llenó, quién lo pagó
  * y qué fechas de viajes cubre. Sustituye a códigos como "R-003".
  */
-export function tramoName(st: AppState, r: RefuelView): { title: string; period: string; payer: string } {
+export function tramoName(st: AppState, r: RefuelView): { title: string; period: string; payer: string; range: string } {
   const i = st.ledger.refuels.indexOf(r);
   const prev = i > 0 ? st.ledger.refuels[i - 1] : null;
   const trips = st.ledger.trips.filter((v) => v.refuelId === r.refuel.id);
@@ -27,6 +27,8 @@ export function tramoName(st: AppState, r: RefuelView): { title: string; period:
     title: `Depósito del ${dayMonth(r.refuel.date)}`,
     period: start != null ? `viajes del ${dayMonth(start)} al ${dayMonth(r.refuel.date)}` : `viajes hasta el ${dayMonth(r.refuel.date)}`,
     payer,
+    /** «8 nov – 19 nov»: desde el depósito anterior hasta este. */
+    range: start != null ? `${dayMonth(start)} – ${dayMonth(r.refuel.date)}` : `hasta ${dayMonth(r.refuel.date)}`,
   };
 }
 

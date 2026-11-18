@@ -1,8 +1,8 @@
 // Backend en memoria SOLO para desarrollo y capturas (?demo). Los datos son sintéticos.
 // Vite lo elimina del build de producción porque solo se importa tras comprobar import.meta.env.DEV.
 import type { AuthState, Backend, Evidence, Snapshot } from './backend';
-import type { Member, Payment, Refuel, Reservation, Trip } from './domain';
-import { adjustPaymentId, buildLedger, paymentId } from './domain';
+import type { GapAnswer, Member, Payment, Refuel, Reservation, Trip } from './domain';
+import { adjustPaymentId, buildLedger, gapAnswerId, paymentId } from './domain';
 
 const DAY = 86_400_000;
 
@@ -149,7 +149,14 @@ export function createDemoBackend(): Backend {
   const who = members.find((x) => x.name.toLowerCase() === (params.get('como') ?? '').toLowerCase()) ?? members[0];
   let authCb: (s: AuthState) => void = () => {};
   const listeners = new Set<(s: Snapshot) => void>();
-  const emit = () => listeners.forEach((cb) => cb({ members, trips: [...trips], refuels: [...refuels], payments: [...payments], reservations: [...reservations] }));
+  // Km misterio de ejemplo: en el hueco 182.598 → 182.612 Carmen dice que hizo 6 km y Lucía que no lo usó.
+  const dayIso = (daysAgo: number) => new Date(now - daysAgo * DAY).toISOString().slice(0, 10);
+  const gapAnswers: GapAnswer[] = [
+    { id: gapAnswerId(182_598, 182_612, c), fromKm: 182_598, toKm: 182_612, member: c, used: true, km: 6, day: dayIso(9), createdAt: now - 6 * DAY },
+    { id: gapAnswerId(182_598, 182_612, l), fromKm: 182_598, toKm: 182_612, member: l, used: false, km: 0, day: null, createdAt: now - 5 * DAY },
+  ];
+  const emit = () =>
+    listeners.forEach((cb) => cb({ members, trips: [...trips], refuels: [...refuels], payments: [...payments], reservations: [...reservations], gapAnswers: gapAnswers.map((a) => ({ ...a })) }));
   const evidence = new Map<string, Evidence>();
 
   return {
@@ -170,11 +177,11 @@ export function createDemoBackend(): Backend {
       return () => listeners.delete(cb);
     },
     async addTrip(i) {
-      trips.push({ id: id(), driver: who.email, date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, createdAt: Date.now(), with: i.with ?? [], addedBy: null, confirmed: [] });
+      trips.push({ id: id(), driver: who.email, date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, createdAt: Date.now(), with: i.with ?? [], addedBy: null, confirmed: [], endDate: i.endKm != null ? (i.endDate ?? null) : null });
       emit();
     },
     async addTripFor(driver, i) {
-      trips.push({ id: id(), driver, date: i.date, start: { km: i.startKm, photoId: null }, end: { km: i.endKm, photoId: null }, note: i.note, createdAt: Date.now(), with: i.with ?? [], addedBy: who.email, confirmed: [] });
+      trips.push({ id: id(), driver, date: i.date, start: { km: i.startKm, photoId: null }, end: { km: i.endKm, photoId: null }, note: i.note, createdAt: Date.now(), with: i.with ?? [], addedBy: who.email, confirmed: [], endDate: i.endKm != null ? (i.endDate ?? null) : null });
       emit();
     },
     async confirmTrip(tid) {
@@ -189,15 +196,21 @@ export function createDemoBackend(): Backend {
     },
     async updateTrip(tid, i) {
       const t = trips.find((x) => x.id === tid);
-      if (t) Object.assign(t, { date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, ...(i.with ? { with: i.with } : {}) });
+      if (t) Object.assign(t, { date: i.date, start: { km: i.startKm, photoId: i.startPhotoId }, end: { km: i.endKm, photoId: i.endPhotoId }, note: i.note, ...(i.with ? { with: i.with } : {}), ...(i.endDate != null && i.endKm != null ? { endDate: i.endDate } : {}) });
       emit();
     },
     async deleteTrip(tid) {
       trips.splice(trips.findIndex((x) => x.id === tid), 1);
       emit();
     },
-    async addRefuel(i) {
+    async addRefuel(i, split) {
       refuels.push({ id: id(), payer: who.email, createdAt: Date.now(), ...i });
+      const t = split ? trips.find((x) => x.id === split.id) : null;
+      if (t) {
+        t.end = { km: i.odometerKm, photoId: i.odometerPhotoId };
+        t.endDate = Math.max(i.date, t.date);
+        trips.push({ id: id(), driver: who.email, date: Math.max(i.date, t.date), start: { km: i.odometerKm, photoId: i.odometerPhotoId }, end: { km: null, photoId: null }, note: 'Sigue después de repostar', createdAt: Date.now(), with: t.with ?? [], addedBy: null, confirmed: [] });
+      }
       emit();
     },
     async deleteRefuel(rid) {
@@ -216,9 +229,27 @@ export function createDemoBackend(): Backend {
       payments.splice(payments.findIndex((x) => x.id === pid), 1);
       emit();
     },
+    async rejectPayment(pid) {
+      payments.splice(payments.findIndex((x) => x.id === pid), 1);
+      emit();
+    },
+    async recordReceived(refuelId, debtor, amountCents, seq) {
+      const now = Date.now();
+      const base = { refuelId, debtor, creditor: who.email, amountCents, status: 'confirmed' as const, sentAt: now, confirmedAt: now };
+      payments.push(seq ? { ...base, id: adjustPaymentId(refuelId, debtor, who.email, seq), kind: 'adjust', seq } : { ...base, id: paymentId(refuelId, debtor) });
+      emit();
+    },
     async confirmPayment(pid) {
       const x = payments.find((y) => y.id === pid);
       if (x) Object.assign(x, { status: 'confirmed', confirmedAt: Date.now() });
+      emit();
+    },
+    async answerGap(i) {
+      const aid = gapAnswerId(i.fromKm, i.toKm, who.email);
+      const fields = { used: i.used, km: i.used ? i.km : 0, day: i.used ? i.day : null };
+      const a = gapAnswers.find((x) => x.id === aid);
+      if (a) Object.assign(a, fields);
+      else gapAnswers.push({ id: aid, fromKm: i.fromKm, toKm: i.toKm, member: who.email, ...fields, createdAt: Date.now() });
       emit();
     },
     async addReservation(i) {

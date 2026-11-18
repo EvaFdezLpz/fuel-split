@@ -4,9 +4,10 @@ import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
 import { busy, dayMonth, dialog, errorText, tramoName, euroSeg, fmtDate, pageHead, toast, totemRow, who } from '../ui';
 import { paginate, pager } from './common';
-import { debtPill } from './refuels';
+import { debtPill, parseMoney } from './refuels';
+import { ledgerLog } from './ledger-log';
 
-let tab: 'debo' | 'medeben' | 'historial' = 'debo';
+let tab: 'debo' | 'medeben' | 'registro' = 'debo';
 
 /** Por qué hay un ajuste: el reparto de un depósito ya pagado cambió después. */
 export function adjustReason(st: AppState, d: Debt): string {
@@ -50,6 +51,10 @@ export function debtActions(st: AppState, d: Debt): HTMLElement[] {
     });
     actions.push(b);
   }
+  // Bizum hecho pero sin marcar, y que la app ha compensado con otra deuda: se marca la parte entera.
+  if (iOwe && d.offsetCents > 0 && (d.state === 'pending' || d.state === 'offset')) actions.push(forgotButton(st, d, 'debtor'));
+  // Quien lo recibe puede anotar un Bizum que le llegó y nadie marcó.
+  if (!iOwe && d.creditor === st.me.email && (d.state === 'pending' || d.state === 'offset')) actions.push(forgotButton(st, d, 'creditor'));
   if (iOwe && d.state === 'sent') {
     const b = h('button', { class: 'btn ghost sm', type: 'button' }, 'Deshacer');
     b.addEventListener('click', async () => {
@@ -64,7 +69,20 @@ export function debtActions(st: AppState, d: Debt): HTMLElement[] {
     actions.push(b);
   }
   if (!iOwe && d.state === 'sent') {
-    const b = h('button', { class: 'btn primary sm', type: 'button' }, icon('check'), 'Confirmar recibido');
+    const no = h('button', { class: 'btn ghost danger sm', type: 'button', 'aria-label': 'No me ha llegado' }, h('span', { class: 'long' }, 'No me ha llegado'), h('span', { class: 'short' }, 'No llegó'));
+    no.addEventListener('click', async () => {
+      if (!confirm(`¿No te ha llegado el Bizum de ${fmtEur(d.payment!.amountCents)} de ${memberOf(st, d.debtor).name}? Se quitará la marca de enviado y volverá a salirle como pendiente.`)) return;
+      busy(no, true, '…');
+      try {
+        await st.backend.rejectPayment(d.paymentId);
+        toast('Marcado como no recibido');
+      } catch (e) {
+        busy(no, false);
+        toast(errorText(e), 'alert');
+      }
+    });
+    actions.push(no);
+    const b = h('button', { class: 'btn primary sm', type: 'button' }, icon('check'), 'Confirmar', h('span', { class: 'long' }, ' recibido'));
     b.addEventListener('click', async () => {
       busy(b, true, 'Confirmando…');
       try {
@@ -79,6 +97,61 @@ export function debtActions(st: AppState, d: Debt): HTMLElement[] {
   }
 
   return actions;
+}
+
+/**
+ * Bizum que se hizo pero no se marcó en la app. Si mientras tanto se compensó con otra deuda, la app
+ * cree que no hacía falta: al anotarlo se quita la compensación y la otra persona vuelve a deber lo suyo
+ * (si ya lo había pagado con descuento, le sale un ajuste por la diferencia).
+ */
+function forgotButton(st: AppState, d: Debt, side: 'debtor' | 'creditor'): HTMLElement {
+  const other = memberOf(st, side === 'debtor' ? d.creditor : d.debtor).name;
+  const r = st.ledger.refuels.find((x) => x.refuel.id === d.refuelId)!;
+  const b = h('button', { class: 'btn ghost sm', type: 'button' }, icon('receipt', 14), side === 'debtor' ? 'Ya lo había pagado' : 'Ya me lo pagó');
+  b.addEventListener('click', () => {
+    const amount = h('input', { class: 'input big num', id: 'forgot-amount', inputmode: 'decimal', autocomplete: 'off', placeholder: '0,00' });
+    const err = h('div', { class: 'error', role: 'alert' });
+    const ok = h('button', { class: 'btn primary', type: 'button' }, icon('check'), side === 'debtor' ? 'Marcar como enviado' : 'Anotar como recibido');
+    const dlg = dialog(
+      side === 'debtor' ? 'Bizum que no marcaste' : 'Bizum que te llegó',
+      [
+        h('p', null, side === 'debtor' ? `Bizum a ${other} por el depósito del ${dayMonth(r.refuel.date)}.` : `Bizum de ${other} por el depósito del ${dayMonth(r.refuel.date)}.`),
+        h(
+          'div',
+          { class: 'field' },
+          h('label', { for: 'forgot-amount' }, side === 'debtor' ? '¿Cuánto enviaste?' : '¿Cuánto te llegó?'),
+          h('div', { class: 'input-unit' }, amount, h('span', null, '€')),
+          h('div', { class: 'hint' }, `Mira el importe en tu banco. Su parte de este depósito es ${fmtEur(d.cents)}.`),
+          err,
+        ),
+        h('p', { class: 'muted small' }, side === 'debtor' ? `Al guardarlo, la app recalcula las cuentas con ese pago. ${other} tendrá que confirmarlo.` : 'Al guardarlo, la app recalcula las cuentas con ese pago. Queda como recibido directamente.'),
+      ],
+      [h('button', { class: 'btn ghost', type: 'button', onclick: (() => dlg.close()) as EventListener }, 'Cancelar'), ok],
+    );
+    setTimeout(() => amount.focus(), 50);
+    amount.addEventListener('input', () => (err.textContent = ''));
+    ok.addEventListener('click', async () => {
+      const pick = parseMoney(amount.value, 2);
+      if (pick == null || Number.isNaN(pick) || pick < 1 || pick > 30_000) {
+        err.textContent = 'Escribe el importe, entre 0,01 y 300 €.';
+        amount.focus();
+        return;
+      }
+      busy(ok, true);
+      try {
+        if (side === 'debtor') {
+          if (d.kind === 'adjust') await st.backend.sendAdjustment(d.refuelId, d.creditor, pick, d.seq ?? 1);
+          else await st.backend.markSent(d.refuelId, d.creditor, pick);
+        } else await st.backend.recordReceived(d.refuelId, d.debtor, pick, d.kind === 'adjust' ? (d.seq ?? 1) : undefined);
+        dlg.close();
+        toast(side === 'debtor' ? 'Marcado como enviado' : 'Anotado como recibido');
+      } catch (e) {
+        busy(ok, false);
+        toast(errorText(e), 'alert');
+      }
+    });
+  });
+  return b;
 }
 
 /** Estado con un icono: ✓ pagado (o compensado), ○ pendiente de confirmar, ✕ sin pagar. */
@@ -150,9 +223,9 @@ export function expensesView(st: AppState, rerender: () => void): Node {
   const lists = {
     debo: mine.filter((d) => d.debtor === me && (d.state === 'pending' || d.state === 'sent')),
     medeben: mine.filter((d) => d.creditor === me && (d.state === 'pending' || d.state === 'sent')),
-    historial: mine.filter((d) => d.state === 'confirmed' || d.state === 'offset'),
+    registro: [] as Debt[],
   };
-  const labels = { debo: `Debo (${lists.debo.length})`, medeben: `Me deben (${lists.medeben.length})`, historial: 'Historial' };
+  const labels = { debo: `Debo (${lists.debo.length})`, medeben: `Me deben (${lists.medeben.length})`, registro: 'Registro' };
   const control = h(
     'div',
     { class: 'seg-control', role: 'group', 'aria-label': 'Filtrar pagos' },
@@ -167,7 +240,7 @@ export function expensesView(st: AppState, rerender: () => void): Node {
   );
   const all = lists[tab];
   const { slice: rows, pages } = paginate(all, PER_PAGE, paging, `${tab}|${all.length}`);
-  const empty = { debo: 'No debes nada. Cuando alguien reposte y hayas conducido, aparecerá aquí.', medeben: 'Nadie te debe nada ahora mismo.', historial: 'Aún no hay pagos confirmados.' }[tab];
+  const empty = { debo: 'No debes nada. Cuando alguien reposte y hayas conducido, aparecerá aquí.', medeben: 'Nadie te debe nada ahora mismo.', registro: '' }[tab];
 
   return h(
     'div',
@@ -179,9 +252,11 @@ export function expensesView(st: AppState, rerender: () => void): Node {
       h('div', { class: 'totem-rows cols-3' }, totemRow('Debes', 'Sin Bizum todavía', euroSeg(bal.owes, bal.owes ? 'bad' : 'dim'), '€'), totemRow('Enviado', 'Esperando confirmación', euroSeg(bal.awaiting, bal.awaiting ? 'led' : 'dim'), '€'), totemRow('Te deben', 'Por cobrar o confirmar', euroSeg(bal.owed, bal.owed ? 'ok' : 'dim'), '€')),
     ),
     control,
-    rows.length
+    tab === 'registro'
+      ? ledgerLog(st, rerender)
+      : rows.length
       ? h('div', { class: 'tiles', id: 'debts' }, rows.map((d) => debtCard(st, d)))
       : h('section', { class: 'block' }, h('div', { class: 'empty' }, icon('ok', 22), empty)),
-    pager({ page: paging.page, pages, total: all.length, perPage: PER_PAGE, noun: ['Pago', 'Pagos'], prev: 'Anteriores', next: 'Siguientes', go: (n) => ((paging.page = n), rerender()), anchor: '#debts' }),
+    tab === 'registro' ? null : pager({ page: paging.page, pages, total: all.length, perPage: PER_PAGE, noun: ['Pago', 'Pagos'], prev: 'Anteriores', next: 'Siguientes', go: (n) => ((paging.page = n), rerender()), anchor: '#debts' }),
   );
 }

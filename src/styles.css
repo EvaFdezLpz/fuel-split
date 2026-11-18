@@ -3578,8 +3578,11 @@ a.tile-date:hover {
 }
 .debt-who {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 5px;
+}
+.debt-who .who {
+  font-weight: 650;
 }
 
 /* ---------- Filtro compacto y desplegable propio ---------- */
@@ -4422,16 +4425,51 @@ html {
   color: var(--ink-2);
   font-size: 0.78rem;
 }
-.photo-pick[hidden] {
-  display: none;
+/* Lo oculto con el atributo hidden se oculta siempre, aunque su clase le dé display: flex o grid. */
+[hidden] {
+  display: none !important;
 }
-/* Dos botones (confirmar / rechazar): debajo del texto, para que este no se estreche. */
-.fix-row:has(.fix-actions) {
-  grid-template-columns: auto minmax(0, 1fr);
+/* Dos botones (confirmar / rechazar): pequeños y a la derecha, a la altura del texto.
+   En pantallas estrechas bajan debajo del texto, alineados con él. */
+.fix-text {
+  min-width: 0;
+}
+.fix-sub {
+  display: block;
+  margin-top: 2px;
 }
 .fix-row .fix-actions {
-  grid-column: 2;
-  justify-content: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.fix-row .fix-actions .btn {
+  min-height: 32px;
+  padding: 4px 11px;
+  gap: 5px;
+  font-size: 0.82rem;
+}
+.fix-row .fix-actions .btn .icon {
+  width: 14px;
+  height: 14px;
+}
+/* Los dos botones van con borde, para que su borde izquierdo quede alineado con el texto. */
+.fix-row .fix-actions .btn.ghost {
+  border: 1px solid var(--line-strong, var(--line));
+  background: var(--surface);
+}
+/* Según el ancho de la tarjeta (no de la pantalla): en una tarjeta estrecha, debajo del texto. */
+.fix-list {
+  container-type: inline-size;
+}
+@container (max-width: 520px) {
+  .fix-row:has(.fix-actions) {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 8px;
+  }
+  .fix-row .fix-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
 }
 .gap-actions,
 .fix-actions {
@@ -4464,6 +4502,800 @@ html {
   img {
     -webkit-user-drag: none;
   }
+}
+
+/* ---------- Gastos: registro de movimientos ---------- */
+.log {
+  display: grid;
+  gap: 14px;
+}
+.log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.log-filters .sel-trigger {
+  min-width: 150px;
+}
+.log-filters .seg-control {
+  order: 3;
+}
+.log-filters > .btn {
+  order: 2;
+  margin-left: auto;
+}
+.log-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.log-totals > div {
+  padding: 10px 14px;
+}
+.log-totals > div + div {
+  border-left: 1px solid var(--line);
+}
+.log-totals dt {
+  font-size: 0.74rem;
+  color: var(--ink-2);
+}
+.log-totals dd {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.log-month {
+  padding: 14px 0 6px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line);
+}
+.log-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.log-row:last-child {
+  border-bottom: 0;
+}
+.log-date {
+  font-size: 0.82rem;
+  color: var(--ink-2);
+}
+.log-main {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.log-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+}
+.log-arrow {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.log-pump {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.log-concept {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-amount {
+  display: grid;
+  justify-items: end;
+  font-weight: 650;
+}
+.log-state {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--warn);
+}
+.log-row.is-pending .log-amount .num {
+  color: var(--ink-2);
+}
+.log-hint {
+  margin: 0;
+}
+@media (max-width: 560px) {
+  .log-list {
+    padding: 0 12px;
+  }
+  .log-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .log-totals dd {
+    font-size: 0.95rem;
+  }
+  .log-totals > div {
+    padding: 9px 10px;
+  }
+  /* Móvil: persona y descargar en una línea; el tipo debajo, a lo ancho. */
+  .log-filters > :first-child {
+    flex: 1;
+  }
+  .log-filters .seg-control {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+  }
+  .log-filters .seg-control button {
+    padding: 6px 4px;
+  }
+}
+
+/* ---------- Botones de pagos: todos iguales ---------- */
+/* En una misma fila ningún botón destaca por color: mismo borde, mismo fondo, mismo tamaño. */
+.pay-act .btn,
+.tile-foot .btn {
+  height: 30px;
+  min-height: 0;
+  padding: 0 11px;
+  gap: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+.pay-act .btn:hover,
+.tile-foot .btn:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-3, var(--ink-2));
+}
+.pay-act .btn .icon,
+.tile-foot .btn .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-2);
+}
+/* Los botones van en su propia línea, a la derecha: el nombre y el depósito no se cortan. */
+.pay-row {
+  grid-template-areas:
+    'ic title amt'
+    'ic dep dep'
+    'ic act act';
+}
+.pay-act:empty {
+  display: none;
+}
+.pay-act:not(:empty) {
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.pay-title {
+  white-space: normal;
+}
+.pay-row .pay-ic {
+  align-self: start;
+}
+
+/* ---------- Pagos del resumen: compacto ---------- */
+.pays {
+  gap: 4px;
+}
+/* Totales en una sola franja fina. */
+.pay-sum {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.pay-sum-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  background: none;
+  border-radius: 0;
+}
+.pay-sum-item + .pay-sum-item {
+  border-left: 1px solid var(--line);
+}
+.pay-sum-item span {
+  font-size: 0.78rem;
+}
+.pay-sum-item b {
+  font-size: 0.98rem;
+}
+/* Cada pago: una línea con nombre e importe; depósito y botones en la segunda. */
+.pay-row {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'ic title amt'
+    'ic dep act';
+  column-gap: 10px;
+  row-gap: 3px;
+  padding: 8px 0;
+}
+.pay-row .pay-ic {
+  width: 24px;
+  height: 24px;
+  align-self: start;
+  margin-top: 1px;
+}
+.pay-row .pay-ic .icon {
+  width: 13px;
+  height: 13px;
+}
+.pay-title {
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.pay-amt {
+  font-size: 0.92rem;
+}
+.pay-dep {
+  font-size: 0.76rem;
+  align-self: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pay-act:not(:empty) {
+  margin-top: 0;
+  flex-wrap: nowrap;
+}
+.pay-act .btn {
+  height: 24px;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 0.74rem;
+  border-radius: 6px;
+}
+.pay-act .btn .icon {
+  width: 12px;
+  height: 12px;
+}
+@media (max-width: 420px) {
+  .pay-row {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+  }
+  .pay-row .pay-ic {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Textos largos/cortos de botones: en el resumen compacto, la versión corta. */
+.btn .short {
+  display: none;
+}
+.pay-act .btn .long {
+  display: none;
+}
+.pay-act .btn .short {
+  display: inline;
+}
+.pay-act .btn .hide-xs {
+  display: none;
+}
+
+/* Sin puntitos de color junto a los nombres: el nombre basta. Solo quedan en el calendario,
+   donde marcan los viajes de cada día y tienen su leyenda. */
+.dot {
+  display: none !important;
+}
+.cal-dots .dot,
+.cal-key .dot {
+  display: inline-block !important;
+}
+
+/* Aviso tras repostar con un viaje en curso: el viaje cerrado y el nuevo, lado a lado. */
+.split-done {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.split-done > li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.split-done > li + li {
+  border-top: 1px solid var(--line);
+}
+.split-done > li.is-new {
+  background: var(--surface-2);
+}
+
+/* ---------- Km misterio: fila con la pregunta y las respuestas ---------- */
+.gap-row {
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-areas:
+    'km info'
+    '. acts';
+  align-items: start;
+  row-gap: 8px;
+}
+.gap-row .gap-km {
+  grid-area: km;
+  grid-column: auto;
+  min-width: 0;
+}
+.gap-row .gap-info {
+  grid-area: info;
+}
+.gap-row .gap-actions {
+  grid-area: acts;
+  justify-content: flex-start;
+  align-items: center;
+}
+.gap-actions .btn,
+.fix-row .fix-actions .btn {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 11px;
+  font-size: 0.8rem;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+.gap-actions .btn .icon {
+  width: 14px;
+  height: 14px;
+}
+.gap-row .gap-info > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.gap-mine {
+  font-weight: 600;
+  margin-right: 2px;
+}
+@media (max-width: 480px) {
+  .gap-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+}
+
+/* Viaje nuevo: ¿lo terminas ahora o más tarde? Dos opciones a lo ancho. */
+.seg-control.seg-wide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+}
+.seg-control.seg-wide button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+}
+
+/* ---------- Km misterio: tarjetas ---------- */
+.gm-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px 14px;
+  display: grid;
+  gap: 10px;
+}
+.gm-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.gm-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gm-km {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.gm-meta {
+  display: grid;
+  justify-items: end;
+  font-size: 0.82rem;
+  text-align: right;
+}
+.gm-progress {
+  display: grid;
+  gap: 5px;
+}
+.gm-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+.gm-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.gm-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+.gm-chip {
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+.gm-name {
+  font-size: 0.74rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gm-val {
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+.gm-chip.is-no .gm-val {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.gm-chip.is-pending {
+  border-style: dashed;
+}
+.gm-chip.is-pending .gm-val {
+  color: var(--ink-2);
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+.gm-chip.is-yes {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.gm-note {
+  margin: 0;
+}
+.gm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gm-link {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.gm-link:hover {
+  color: var(--ink);
+}
+@media (max-width: 480px) {
+  .gm-list {
+    padding: 4px 12px 12px;
+  }
+  .gm-people {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Km misterio, compacto: en pantallas anchas, tarjetas una al lado de otra. */
+.gm-list {
+  gap: 8px;
+  padding: 2px 16px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  align-items: start;
+}
+.gm-card {
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+}
+.gm-head {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.gm-km {
+  font-size: 1rem;
+}
+.gm-meta {
+  display: block;
+  text-align: left;
+  font-size: 0.78rem;
+}
+.gm-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gm-bar {
+  flex: 1;
+  height: 4px;
+}
+.gm-progress > span {
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+.gm-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gm-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.gm-name {
+  font-size: 0.74rem;
+}
+.gm-val,
+.gm-chip.is-pending .gm-val {
+  font-size: 0.76rem;
+}
+.gm-foot .gap-actions .btn {
+  height: 26px;
+  min-height: 0;
+  padding: 0 9px;
+  font-size: 0.76rem;
+}
+.gm-link {
+  font-size: 0.74rem;
+  padding: 0;
+}
+@media (max-width: 480px) {
+  .gm-people {
+    display: flex;
+  }
+  .gm-list {
+    padding: 2px 12px 10px;
+  }
+}
+
+/* ---------- Formularios más compactos: casillas y opciones de tamaño justo ---------- */
+.reading {
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+}
+.input.big {
+  font-size: 1.1rem;
+  min-height: 42px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+/* Un km tiene 6 cifras: la casilla no necesita todo el ancho. */
+.reading .input-unit,
+#forgot-amount,
+.field > .input-unit {
+  max-width: 260px;
+}
+.seg-control.seg-wide {
+  max-width: 420px;
+}
+.seg-control.seg-wide button {
+  padding: 6px 8px;
+  font-size: 0.86rem;
+}
+.who-chip {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+}
+.form .field > .input:not(textarea),
+.form .field > .sel-trigger {
+  max-width: 420px;
+}
+
+/* ---------- Formulario de viaje, compacto ---------- */
+.form {
+  gap: 12px;
+}
+.reading {
+  gap: 10px;
+  padding: 12px 14px;
+}
+.reading-head .label {
+  font-size: 0.9rem;
+}
+/* Km y fecha en la misma línea; la foto debajo, pequeña. */
+.reading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+.reading-row .field {
+  gap: 4px;
+}
+.reading-row .field label {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  font-weight: 560;
+}
+.reading-km {
+  flex: 0 1 200px;
+  min-width: 150px;
+}
+.reading-km .input-unit {
+  max-width: none;
+}
+.reading-date {
+  flex: 0 1 230px;
+  min-width: 190px;
+}
+.reading-date .input {
+  min-height: 42px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 0.95rem;
+}
+.reading .photo-pick .btn {
+  height: 32px;
+  min-height: 0;
+  font-size: 0.82rem;
+  padding: 0 10px;
+}
+.reading > .ocr:empty,
+.reading > .error:empty,
+.reading > .hint:empty,
+.reading > :empty:not(.reading-row):not(.photo-pick) {
+  display: none;
+}
+.start-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.start-summary .gm-link {
+  margin-left: auto;
+}
+#trip-note {
+  min-height: 52px;
+}
+.form .hint:empty {
+  display: none;
+}
+@media (max-width: 480px) {
+  /* Km y fecha lado a lado también en el móvil. */
+  .reading-row {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .reading-km {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .reading-date {
+    flex: 1.35 1 0;
+    min-width: 0;
+  }
+  .reading-date .input {
+    font-size: 0.85rem;
+    padding-left: 8px;
+    padding-right: 6px;
+  }
+  .reading-km .input.big {
+    font-size: 1rem;
+  }
+}
+
+/* ---------- Avisos ---------- */
+.bell-ic {
+  position: relative;
+  display: inline-flex;
+}
+.bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.rail .bell-badge {
+  box-shadow: 0 0 0 2px oklch(20% 0.012 258);
+}
+.notice-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.notice-line:hover {
+  border-color: var(--line-strong);
+}
+.notice-go {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.notice-group .pager {
+  margin: 0;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--line);
+}
+.notice-group .fix-list > li:last-child {
+  border-bottom: 0;
+}
+/* Avisos: columna centrada, no a todo el ancho. */
+.notices-page {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
 }
 
 /* ---------- Modo oscuro elegido a mano (generado) ---------- */

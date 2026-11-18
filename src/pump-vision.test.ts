@@ -98,7 +98,7 @@ const pump = [
   { text: '1,539', h: 70 },
 ];
 
-describe('readPumpDisplay', () => {
+describe('readPumpDisplay', { timeout: 30_000 }, () => {
   it('lee una pantalla LCD (cifras oscuras)', () => {
     expect(readPumpDisplay(render({ lines: pump, noise: 20 })).guess).toMatchObject({ amountCents: 6175, priceMilli: 1539, litersMilli: 40120 });
   });

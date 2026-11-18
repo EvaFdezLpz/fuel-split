@@ -1,8 +1,8 @@
 import { h } from '../dom';
-import { MAX_KM, TANK_LITERS, buildLedger, fmtEur, fmtKm, fmtLiters, fmtPrice, groupThousands, type Debt, type RefuelView, type Share } from '../domain';
+import { MAX_KM, TANK_LITERS, buildLedger, openTripAt, splitTripsAt, fmtEur, fmtKm, fmtLiters, fmtPrice, groupThousands, type Debt, type RefuelView, type Share, type Trip } from '../domain';
 import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
-import { busy, dayMonth, errorText, tramoName, euroSeg, fmtDate, linkBtn, pageHead, priceSeg, showEvidence, toast, who, withColor } from '../ui';
+import { busy, dayMonth, dialog, errorText, tramoName, euroSeg, fmtDate, linkBtn, pageHead, priceSeg, showEvidence, toast, who, withColor } from '../ui';
 import { segmentDisplay } from '../segments';
 import { legend, paginate, pager, tramoBar } from './common';
 import { tripRow } from './trips';
@@ -186,7 +186,7 @@ export function refuelDetailView(st: AppState, id: string): Node | null {
   return h('div', { class: 'stack' }, nav, refuelBlock(st, r));
 }
 
-function parseMoney(raw: string, decimals: number): number | null {
+export function parseMoney(raw: string, decimals: number): number | null {
   const s = raw.trim().replace(/\s|€/g, '').replace(',', '.');
   if (!s) return null;
   if (!new RegExp(`^\\d{1,4}(\\.\\d{1,${decimals}})?$`).test(s)) return NaN;
@@ -267,6 +267,47 @@ export function refuelFormView(st: AppState): Node {
   const dateDetails = h('details', { class: 'more' });
   const lateBox = h('div', { 'aria-live': 'polite' });
   const tramoBox = h('div', { class: 'tramo-line', 'aria-live': 'polite' });
+  // Viaje en curso de quien reposta: se termina en el km del repostaje y empieza otro desde ahí.
+  const splitBox = h('div', { 'aria-live': 'polite' });
+  const splitFor = (km: number | null) => (km != null && !Number.isNaN(km) && !around(km).late ? openTripAt(st.snap.trips, st.me.email, km) : null);
+  const renderSplit = (km: number | null) => {
+    splitBox.replaceChildren();
+    const t = splitFor(km);
+    if (t) {
+      splitBox.append(
+        h(
+          'div',
+          { class: 'late-note split-note', role: 'note' },
+          icon('route', 16),
+          h(
+            'div',
+            null,
+            h('b', null, 'Tienes un viaje en curso. '),
+            `Empezó en ${fmtKm(t.start.km!)}. Al guardar, se termina en ${fmtKm(km!)} (${fmtKm(km! - t.start.km!)}, que cuentan para este depósito) y empieza otro desde ahí, con la misma foto. Lo terminas al aparcar, como siempre.`,
+          ),
+        ),
+      );
+      return;
+    }
+    // Viaje de otra persona sin terminar: no lo cierra el repostaje, sino el inicio del siguiente viaje.
+    const other = km != null && !Number.isNaN(km) ? st.ledger.trips.find((v) => v.endState === 'open' && v.trip.driver !== st.me.email && v.trip.start.km != null && v.trip.start.km < km) : null;
+    if (other) {
+      const n = memberOf(st, other.trip.driver).name;
+      splitBox.append(
+        h(
+          'div',
+          { class: 'late-note split-note', role: 'note' },
+          icon('route', 16),
+          h(
+            'div',
+            null,
+            h('b', null, `${n} tiene un viaje sin terminar. `),
+            `Empezó en ${fmtKm(other.trip.start.km!)}. Se dará por terminado donde empiece el siguiente viaje (o cuando ${n} ponga su km final). Hasta entonces esos km no cuentan en este reparto; después la app lo recalcula.`,
+          ),
+        ),
+      );
+    }
+  };
   odo.el.append(tramoBox);
   odo.el.querySelector('legend')?.prepend(h('span', { class: 'step-n', 'aria-hidden': 'true' }, '2'));
   const renderTramo = (km: number | null, cents: number | null, priceMilli: number | null) => {
@@ -310,8 +351,11 @@ export function refuelFormView(st: AppState): Node {
     let registered = 0;
     for (const v of st.ledger.trips) {
       const a = v.trip.start.km;
-      if (a == null || v.endState === 'open' || v.endKm == null) continue;
-      registered += Math.max(0, Math.min(v.endKm, km) - Math.max(a, tramoFrom));
+      if (a == null) continue;
+      // Tu viaje en curso se termina en el km de este repostaje; el de otra persona, aún no se sabe.
+      const end = v.endState === 'open' ? (v.trip.driver === st.me.email && splitFor(km) ? km : null) : v.endKm;
+      if (end == null) continue;
+      registered += Math.max(0, Math.min(end, km) - Math.max(a, tramoFrom));
     }
     const missing = Math.max(0, total - registered);
     tramoBox.append(
@@ -327,6 +371,9 @@ export function refuelFormView(st: AppState): Node {
       tramoBox.append(h('p', { class: 'hint warn-line' }, icon('alert', 14), `${fmtKm(missing)} sin apuntar en viajes: se reparten entre todos según sus km si nadie los reclama. `, h('a', { href: '#/viajes' }, 'Ver viajes')));
     if (cents && priceMilli && !Number.isNaN(priceMilli)) {
       const liters = (cents * 10) / priceMilli;
+      // Un C3 gasta como poco unos 3,5 l/100 km: más de 30 km por litro es un km mal escrito.
+      if (liters > 0 && total / liters > 30)
+        tramoBox.append(h('p', { class: 'error' }, `Salen ${fmtKm(total)} con ${liters.toFixed(1).replace('.', ',')} l, más de 30 km por litro. Revisa el km del cuentakilómetros.`));
       if (liters > TANK_LITERS + 2)
         tramoBox.append(h('p', { class: 'error' }, `Salen ${liters.toFixed(1).replace('.', ',')} l y el depósito es de unos ${TANK_LITERS} l. Revisa importe o precio.`));
     }
@@ -340,6 +387,7 @@ export function refuelFormView(st: AppState): Node {
     litersOut.textContent = okC && okP ? `${fmtLiters(Math.round((c! * 10_000) / p!))} repostados` : '';
     const km = odo.km();
     renderTramo(km, okC ? c : null, okP ? p : null);
+    renderSplit(km);
     preview.replaceChildren();
     if (!c || Number.isNaN(c) || km == null || Number.isNaN(km)) {
       preview.append(h('div', { class: 'block-head' }, h('h2', null, 'Reparto')), h('div', { class: 'block-body muted small' }, 'Pon el importe y los km para ver cuánto paga cada uno.'));
@@ -347,7 +395,8 @@ export function refuelFormView(st: AppState): Node {
     }
     // Simulación con los mismos datos y la misma función que usará la app tras guardar.
     const fake = { id: '__preview', payer: st.me.email, date: new Date(date.value).getTime() || Date.now(), amountCents: c, priceMilli: p && !Number.isNaN(p) ? p : 1, odometerKm: km, odometerPhotoId: null, receiptPhotoId: '', note: '', createdAt: Date.now() };
-    const sim = buildLedger(st.snap.trips, [...st.snap.refuels, fake], []);
+    const open = splitFor(km);
+    const sim = buildLedger(open ? splitTripsAt(st.snap.trips, open, km, fake.date) : st.snap.trips, [...st.snap.refuels, fake], []);
     const r = sim.refuels.find((x) => x.refuel.id === '__preview');
     if (!r) return;
     const shares: Share[] = r.shares;
@@ -404,6 +453,7 @@ export function refuelFormView(st: AppState): Node {
       litersOut,
     ),
     odo.el,
+    splitBox,
     lateBox,
     dateDetails,
     formErr,
@@ -447,14 +497,45 @@ export function refuelFormView(st: AppState): Node {
       const receiptPhotoId = await st.backend.addEvidence('receipt', receipt.pending()!);
       const op = odo.photo.pending();
       const odometerPhotoId = op ? await st.backend.addEvidence('odometer', op) : null;
-      await st.backend.addRefuel({ date: when, amountCents: c!, priceMilli: p!, odometerKm: km!, odometerPhotoId, receiptPhotoId, note: note.value.trim().slice(0, 280) });
-      toast('Repostaje guardado. Ya se ve lo que debe cada uno.');
-      location.hash = '#/repostajes';
+      const split = splitFor(km);
+      await st.backend.addRefuel({ date: when, amountCents: c!, priceMilli: p!, odometerKm: km!, odometerPhotoId, receiptPhotoId, note: note.value.trim().slice(0, 280) }, split);
+      if (split) {
+        // Aviso claro: se ha empezado un viaje nuevo desde el km del repostaje. Se abre cuando ya se ha
+        // cambiado de pantalla (al navegar se cierran los diálogos abiertos).
+        window.addEventListener('hashchange', () => setTimeout(() => showSplitDone(split, km!), 0), { once: true });
+        location.hash = '#/repostajes';
+      } else {
+        toast('Repostaje guardado. Ya se ve lo que debe cada uno.');
+        location.hash = '#/repostajes';
+      }
     } catch (e) {
       busy(save, false);
       formErr.textContent = errorText(e);
     }
   });
 
+
   return h('div', { class: 'stack' }, pageHead('Registrar repostaje', 'Pagas tú; los demás te devuelven su parte por km.'), h('div', { class: 'form-split' }, form, aside));
+}
+
+/** Aviso tras repostar con un viaje en curso: se cerró en el km del repostaje y empezó otro. */
+function showSplitDone(split: Trip, km: number) {
+  const from = split.start.km ?? km;
+  const ok = h('button', { class: 'btn primary', type: 'button' }, 'Entendido');
+  const go = h('a', { class: 'btn ghost', href: '#/viajes' }, 'Ver mis viajes');
+  const dlg = dialog(
+    'Se ha iniciado un viaje',
+    [
+      h(
+        'ol',
+        { class: 'split-done' },
+        h('li', null, h('span', { class: 'small muted' }, 'Terminado al repostar'), h('b', { class: 'num' }, `${fmtKm(from)} → ${fmtKm(km)}`), h('span', { class: 'small muted num' }, `${fmtKm(km - from)}, cuentan para este depósito`)),
+        h('li', { class: 'is-new' }, h('span', { class: 'small muted' }, 'Nuevo, en curso'), h('b', { class: 'num' }, `Desde ${fmtKm(km)}`), h('span', { class: 'small muted' }, split.with?.length ? 'Con los mismos acompañantes' : 'Empieza en el km del repostaje')),
+      ),
+      h('p', null, h('b', null, 'Recuerda terminarlo al aparcar'), ', como cualquier otro viaje.'),
+    ],
+    [go, ok],
+  );
+  ok.addEventListener('click', () => dlg.close());
+  go.addEventListener('click', () => dlg.close());
 }

@@ -61,6 +61,8 @@ service cloud.firestore {
         && reading(d.end, false)
         && (d.end.km == null || (d.end.km >= d.start.km && d.end.km - d.start.km <= 3000))
         && sensibleDate(d.date)
+        // Llegada (opcional): solo con km final, no antes de la salida ni en el futuro.
+        && (d.get('endDate', null) == null || (d.end.km != null && sensibleDate(d.endDate) && d.endDate >= d.date))
         && isNote(d.note)
         && d.updatedAt == request.time;
     }
@@ -95,7 +97,8 @@ service cloud.firestore {
     // Campos: conductor, fecha, lecturas, nota, fechas de servidor y, para viajes compartidos o apuntados
     // por otra persona: with (acompañantes), addedBy (quién lo apuntó) y confirmed (quién lo ha confirmado).
     function tripKeysNew() {
-      return exactKeys(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed']);
+      return data().keys().hasAll(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed'])
+        && data().keys().hasOnly(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed', 'endDate']);
     }
     // Acompañantes: hasta 4 personas de la lista blanca, sin repetir y sin el conductor.
     function people(list, driver) {
@@ -149,7 +152,7 @@ service cloud.firestore {
         && resource.data.driver == me()
         && resource.data.get('addedBy', null) == null
         && data().keys().hasAll(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt'])
-        && data().keys().hasOnly(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed'])
+        && data().keys().hasOnly(['driver', 'date', 'start', 'end', 'note', 'createdAt', 'updatedAt', 'with', 'addedBy', 'confirmed', 'endDate'])
         && data().driver == resource.data.driver
         && data().createdAt == resource.data.createdAt
         && data().get('addedBy', null) == null
@@ -264,6 +267,42 @@ service cloud.firestore {
         && data().sentAt == request.time
         && data().confirmedAt == null;
 
+      // Bizum que no se marcó: quien lo recibió lo anota directamente como recibido. Solo puede
+      // anotarse dinero a favor de otro (es quien lo recibe quien lo declara), así que no se puede abusar.
+      allow create: if isMember()
+        && exactKeys(['refuelId', 'debtor', 'creditor', 'amountCents', 'status', 'sentAt', 'confirmedAt'])
+        && isDocId(data().refuelId)
+        && data().debtor is string
+        && id == data().refuelId + '__' + data().debtor
+        && data().creditor == me()
+        && data().debtor != me()
+        && exists(memberPath(data().debtor))
+        && exists(/databases/$(database)/documents/refuels/$(data().refuelId))
+        && get(/databases/$(database)/documents/refuels/$(data().refuelId)).data.payer == me()
+        && data().amountCents is int && data().amountCents > 0 && data().amountCents <= 30000
+        && data().status == 'confirmed'
+        && data().sentAt == request.time
+        && data().confirmedAt == request.time;
+
+      // Lo mismo para un Bizum de ajuste que no se marcó.
+      allow create: if isMember()
+        && exactKeys(['refuelId', 'debtor', 'creditor', 'amountCents', 'status', 'sentAt', 'confirmedAt', 'kind', 'seq'])
+        && data().kind == 'adjust'
+        && data().seq is int && data().seq >= 1 && data().seq <= 99
+        && isDocId(data().refuelId)
+        && data().debtor is string
+        && id == data().refuelId + '__' + data().debtor + '__' + me() + '__a' + string(data().seq)
+        && data().creditor == me()
+        && data().debtor != me()
+        && exists(memberPath(data().debtor))
+        && exists(/databases/$(database)/documents/refuels/$(data().refuelId))
+        && (me() == get(/databases/$(database)/documents/refuels/$(data().refuelId)).data.payer
+            || data().debtor == get(/databases/$(database)/documents/refuels/$(data().refuelId)).data.payer)
+        && data().amountCents is int && data().amountCents > 0 && data().amountCents <= 30000
+        && data().status == 'confirmed'
+        && data().sentAt == request.time
+        && data().confirmedAt == request.time;
+
       // Solo el acreedor confirma que lo ha recibido, y solo puede cambiar el estado.
       allow update: if isMember()
         && resource.data.creditor == me()
@@ -272,9 +311,10 @@ service cloud.firestore {
         && data().status == 'confirmed'
         && data().confirmedAt == request.time;
 
-      // El deudor puede deshacer mientras no esté confirmado.
+      // El deudor puede deshacer mientras no esté confirmado, y quien lo iba a recibir puede
+      // rechazarlo («No me ha llegado»): un Bizum marcado que no llegó no se queda para siempre.
       allow delete: if isMember()
-        && resource.data.debtor == me()
+        && (resource.data.debtor == me() || resource.data.creditor == me())
         && resource.data.status == 'sent';
     }
 
@@ -298,6 +338,32 @@ service cloud.firestore {
         && resource.data.member == me()
         && data().diff(resource.data).affectedKeys().hasOnly(['day', 'endDay', 'note'])
         && validReservation();
+      allow delete: if isMember() && resource.data.member == me();
+    }
+
+    // Km misterio: cada uno responde por sí mismo si usó el coche entre dos fotos del cuentakilómetros
+    // (sí con el día y los km, o no). Solo su propia respuesta, y la puede cambiar o retirar.
+    function validGapAnswer() {
+      return isKm(data().fromKm) && isKm(data().toKm)
+        && data().toKm > data().fromKm
+        && data().toKm - data().fromKm <= 3000
+        && data().used is bool
+        && data().km is int
+        && ((data().used == true && data().km >= 1 && data().km <= data().toKm - data().fromKm && isDay(data().day))
+            || (data().used == false && data().km == 0 && data().day == null));
+    }
+    match /gapAnswers/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && exactKeys(['fromKm', 'toKm', 'member', 'used', 'km', 'day', 'createdAt'])
+        && data().member == me()
+        && id == string(data().fromKm) + '-' + string(data().toKm) + '__' + me()
+        && data().createdAt == request.time
+        && validGapAnswer();
+      allow update: if isMember()
+        && resource.data.member == me()
+        && data().diff(resource.data).affectedKeys().hasOnly(['used', 'km', 'day'])
+        && validGapAnswer();
       allow delete: if isMember() && resource.data.member == me();
     }
 

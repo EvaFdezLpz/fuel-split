@@ -1,6 +1,6 @@
 # Seguridad de Depósito común
 
-La app es una SPA estática (Firebase Hosting) que habla directamente con Firestore. **La frontera de seguridad son las reglas de Firestore** (`firestore.rules`): el navegador se puede manipular, las reglas no. Están cubiertas por 46 pruebas automáticas contra el emulador (`npm run test:rules`).
+La app es una SPA estática (Firebase Hosting) que habla directamente con Firestore. **La frontera de seguridad son las reglas de Firestore** (`firestore.rules`): el navegador se puede manipular, las reglas no. Están cubiertas por 53 pruebas automáticas contra el emulador (`npm run test:rules`).
 
 ## OWASP Top 10 (2021)
 

@@ -4,6 +4,7 @@ import { icon } from '../icons';
 import { memberOf, type AppState } from '../state';
 import { dayMonth, euroSeg, evidencePill, fmtDate, kmSeg, pageHead, totemRow, tramoName, withColor } from '../ui';
 import { debtPill } from './refuels';
+import { segmentDisplay } from '../segments';
 import { dateRangePicker } from './calendar';
 import { tripDetail } from './trips';
 import { paginate, pager } from './common';
@@ -89,19 +90,18 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
   );
   void dateField;
 
+  const fills = stats.tramos.filter((t) => t.view.refuel.payer === email).length;
   const tramoKm = stats.tramos.reduce((a, t) => a + (t.share?.km ?? 0), 0);
-  const centsPerKm = tramoKm > 0 ? stats.costCents / tramoKm : null;
   const totem = h(
     'section',
     { class: 'totem', 'aria-label': `Totales de ${m.name}` },
     h('div', { class: 'totem-head' }, h('span', null, `${m.name} · ${stats.trips.length} viajes`), h('span', { class: 'plate' }, range.kind === 'todo' ? 'Histórico' : 'Periodo')),
     h(
       'div',
-      { class: 'totem-rows' },
-      totemRow('Km recorridos', centsPerKm != null ? `${centsPerKm.toFixed(1).replace('.', ',')} cént. por km` : 'En el periodo', kmSeg(stats.km, 4), 'km'),
-      totemRow('Coste de sus km', 'Su parte de los repostajes', euroSeg(stats.costCents, stats.costCents ? 'led' : 'dim'), '€'),
-      totemRow('Pagado en surtidor', 'Depósitos que llenó', euroSeg(stats.pumpCents, stats.pumpCents ? 'led' : 'dim'), '€'),
-      totemRow('Bizum enviados', `Recibidos: ${fmtEur(stats.receivedCents)}`, euroSeg(stats.sentCents, stats.sentCents ? 'led' : 'dim'), '€'),
+      { class: 'totem-rows cols-3' },
+      totemRow('Km recorridos', isMe ? 'Todos tus viajes' : 'Todos sus viajes', kmSeg(stats.km, 4), 'km'),
+      totemRow('Gastado en gasolina', isMe ? 'Lo que te han costado tus km' : 'Lo que le han costado sus km', euroSeg(stats.costCents, stats.costCents ? 'led' : 'dim'), '€'),
+      totemRow(isMe ? 'Veces que has repostado' : 'Veces que ha repostado', isMe ? 'Depósitos que pagaste en la gasolinera' : 'Depósitos que pagó en la gasolinera', segmentDisplay(String(fills), { minDigits: 2, label: `${fills} repostajes`, tone: fills ? 'led' : 'dim' }), fills === 1 ? 'vez' : 'veces'),
     ),
   );
 
@@ -131,18 +131,18 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
   const summary = h(
     'section',
     { class: 'block' },
-    h('div', { class: 'block-head' }, h('h2', null, t('Tu gasolina', `La gasolina de ${m.name}`))),
+    h('div', { class: 'block-head' }, h('h2', null, t('¿Estás al día?', `¿${m.name} está al día?`))),
     h(
       'div',
       { class: 'block-body money' },
       h(
         'div',
         { class: 'calc-ticket' },
-        line(t('Llenaste depósitos por', 'Llenó depósitos por'), fmtEur(stats.pumpCents)),
+        line(t('Pagaste en la gasolinera', 'Pagó en la gasolinera'), fmtEur(stats.pumpCents)),
         line(t('+ Bizum que enviaste', '+ Bizum que envió'), fmtEur(stats.sentCents)),
-        line(t('− Bizum que te devolvieron', '− Bizum que le devolvieron'), fmtEur(stats.receivedCents)),
+        line(t('− Bizum que recibiste', '− Bizum que recibió'), fmtEur(stats.receivedCents)),
         line(t('Has pagado en total', 'Ha pagado en total'), fmtEur(net), 'total'),
-        line(t(`Lo que gastaste (tus ${fmtKm(tramoKm)})`, `Lo que gastó (sus ${fmtKm(tramoKm)})`), fmtEur(stats.costCents), 'sub'),
+        line(t(`Te tocaba pagar (tus ${fmtKm(tramoKm)})`, `Le tocaba pagar (sus ${fmtKm(tramoKm)})`), fmtEur(stats.costCents), 'sub'),
       ),
       Math.abs(diff) < 1
         ? h('div', { class: 'notice ok' }, h('span', null, t('Estás al día: has pagado justo lo que has gastado.', 'Está al día: ha pagado justo lo que ha gastado.')))
@@ -265,7 +265,7 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
   const chart = h(
     'section',
     { class: 'block' },
-    h('div', { class: 'block-head' }, h('h2', null, 'Km por mes')),
+    h('div', { class: 'block-head' }, h('h2', null, t('Tus km cada mes', 'Sus km cada mes'))),
     h(
       'div',
       { class: 'block-body' },
@@ -293,7 +293,7 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
   const tramos = h(
     'section',
     { class: 'block', id: 'por-depositos' },
-    h('div', { class: 'block-head' }, h('h2', null, 'Por depósitos'), h('span', { class: 'muted small' }, `${tramoList.length}`)),
+    h('div', { class: 'block-head' }, h('h2', null, t('Tu parte de cada depósito', 'Su parte de cada depósito')), h('span', { class: 'muted small' }, `${tramoList.length}`)),
     stats.tramos.length
       ? h(
           'div',
@@ -301,7 +301,7 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
           h(
             'table',
             null,
-            h('thead', null, h('tr', null, h('th', null, 'Depósito'), h('th', { class: 'r' }, 'Km'), h('th', { class: 'r' }, 'Importe'), h('th', null, 'Estado'))),
+            h('thead', null, h('tr', null, h('th', null, 'Fechas'), h('th', null, 'Llenó'), h('th', null, 'Pago'), h('th', { class: 'r' }, t('Tus km', 'Sus km')), h('th', { class: 'r' }, t('Te toca', 'Le toca')))),
             h(
               'tbody',
               null,
@@ -309,10 +309,11 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
                 h(
                   'tr',
                   null,
-                  h('td', null, h('a', { class: 'strong', href: `#/repostajes/${t.view.refuel.id}` }, tramoName(st, t.view).title), h('div', { class: 'small muted' }, h('span', { class: 'hide-sm' }, `${tramoName(st, t.view).period} · `), `llenó ${tramoName(st, t.view).payer}`)),
+                  h('td', { class: 'nowrap' }, h('a', { class: 'strong num', href: `#/repostajes/${t.view.refuel.id}`, title: tramoName(st, t.view).title }, tramoName(st, t.view).range)),
+                  h('td', { class: 'nowrap' }, t.view.refuel.payer === st.me.email ? 'Tú' : tramoName(st, t.view).payer),
+                  h('td', null, debtPill(t.debt ?? undefined, t.view.refuel.payer === email)),
                   h('td', { class: 'r num' }, groupThousands(t.share?.km ?? 0)),
                   h('td', { class: 'r num strong' }, fmtEur(t.share?.cents ?? 0)),
-                  h('td', null, debtPill(t.debt ?? undefined, t.view.refuel.payer === email)),
                 ),
               ),
             ),
@@ -345,7 +346,7 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
   const trips = h(
     'section',
     { class: 'block', id: 'por-viajes' },
-    h('div', { class: 'block-head' }, h('h2', null, 'Por viajes'), monthNav),
+    h('div', { class: 'block-head' }, h('h2', null, t('Tus viajes del mes', 'Sus viajes del mes')), monthNav),
     monthTrips.length
       ? h(
           'div',
@@ -353,7 +354,7 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
           h(
             'table',
             { class: 'cards trips-month' },
-            h('thead', null, h('tr', null, h('th', null, 'Viaje'), h('th', { class: 'r' }, 'Km'), h('th', null, 'Inicio'), h('th', null, 'Final'))),
+            h('thead', null, h('tr', null, h('th', null, 'Fecha'), h('th', { class: 'r' }, 'Km'), h('th', null, 'Foto salida'), h('th', null, 'Foto llegada'))),
             h(
               'tbody',
               null,
@@ -363,8 +364,8 @@ export function profileView(st: AppState, email: string, rerender: () => void): 
                   { class: 'clickable', tabindex: 0 },
                   h('td', null, h('span', { class: 'strong' }, dayMonth(v.trip.date)), h('div', { class: 'small muted num' }, `${groupThousands(v.trip.start.km ?? 0)} → ${v.endKm != null ? groupThousands(v.endKm) : '…'}`)),
                   h('td', { class: 'r num strong' }, v.endState === 'open' ? 'En curso' : fmtKm(v.km)),
-                  h('td', { 'data-label': 'Inicio' }, evid(v.startState, '')),
-                  h('td', { 'data-label': 'Final' }, evid(v.endState, '')),
+                  h('td', { 'data-label': 'Foto salida' }, evid(v.startState, '')),
+                  h('td', { 'data-label': 'Foto llegada' }, evid(v.endState, '')),
                 );
                 const open = () => tripDetail(st, v);
                 tr.addEventListener('click', open);

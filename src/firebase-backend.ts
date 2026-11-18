@@ -27,11 +27,12 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
 import type { AuthState, Backend, Evidence, RefuelInput, Snapshot, TripInput } from './backend';
-import { DAY_RE, type ColorKey, type Member, type Payment, type Refuel, type Reservation, type Trip } from './domain';
-import { adjustPaymentId, paymentId } from './domain';
+import { DAY_RE, type ColorKey, type GapAnswer, type Member, type Payment, type Refuel, type Reservation, type Trip } from './domain';
+import { adjustPaymentId, gapAnswerId, paymentId } from './domain';
 
 const config = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -82,6 +83,7 @@ function parseTrip(id: string, d: DocumentData): Trip | null {
     with: emails(d.with).filter((e) => e !== d.driver),
     addedBy: isStr(d.addedBy) ? d.addedBy : null,
     confirmed: emails(d.confirmed),
+    endDate: end.km != null ? (ms(d.endDate) ?? null) : null,
   };
 }
 
@@ -116,6 +118,13 @@ function parseReservation(id: string, d: DocumentData): Reservation | null {
   if (!isStr(d.member) || !isStr(d.day, 10) || !isStr(d.endDay, 10) || !isStr(d.note, 280)) return null;
   if (!DAY_RE.test(d.day) || !DAY_RE.test(d.endDay) || d.endDay < d.day) return null;
   return { id, member: d.member, day: d.day, endDay: d.endDay, note: d.note, createdAt: ms(d.createdAt) ?? Date.now() };
+}
+
+function parseGapAnswer(id: string, d: DocumentData): GapAnswer | null {
+  if (!isInt(d.fromKm) || !isInt(d.toKm) || !isStr(d.member) || typeof d.used !== 'boolean' || !isInt(d.km)) return null;
+  if (d.toKm <= d.fromKm || d.km < 0) return null;
+  const day = isStr(d.day, 10) && DAY_RE.test(d.day) ? d.day : null;
+  return { id, fromKm: d.fromKm, toKm: d.toKm, member: d.member, used: d.used, km: d.used ? d.km : 0, day, createdAt: ms(d.createdAt) ?? Date.now() };
 }
 
 function parsePayment(id: string, d: DocumentData): Payment | null {
@@ -156,6 +165,8 @@ export function createFirebaseBackend(): Backend {
   provider.setCustomParameters({ prompt: 'select_account' });
 
   let me = '';
+  // Respuestas a km misterio que ya existen (para crearla o cambiarla).
+  let answerIds = new Set<string>();
   const tripRef = (id?: string) => (id ? doc(db, 'trips', id) : doc(collection(db, 'trips')));
 
   const tripData = (input: TripInput) => ({
@@ -164,6 +175,8 @@ export function createFirebaseBackend(): Backend {
     end: { km: input.endKm, photoId: input.endPhotoId },
     note: input.note,
     updatedAt: serverTimestamp(),
+    // Solo si se ha puesto: así añadir una foto a un viaje antiguo no toca nada más.
+    ...(input.endDate != null && input.endKm != null ? { endDate: Timestamp.fromMillis(input.endDate) } : {}),
   });
 
   return {
@@ -231,11 +244,11 @@ export function createFirebaseBackend(): Backend {
     },
 
     subscribe(cb, onError) {
-      const snap: Snapshot = { members: [], trips: [], refuels: [], payments: [], reservations: [] };
+      const snap: Snapshot = { members: [], trips: [], refuels: [], payments: [], reservations: [], gapAnswers: [] };
       const ready = new Set<string>();
       const emit = (key: string) => {
         ready.add(key);
-        if (ready.size === 5) cb({ ...snap });
+        if (ready.size === 6) cb({ ...snap });
       };
       const keep = <T>(arr: (T | null)[]) => arr.filter((x): x is T => x !== null);
       const unsubs = [
@@ -258,6 +271,11 @@ export function createFirebaseBackend(): Backend {
         onSnapshot(collection(db, 'reservations'), (s) => {
           snap.reservations = keep(s.docs.map((d) => parseReservation(d.id, d.data({ serverTimestamps: 'estimate' }))));
           emit('reservations');
+        }, onError),
+        onSnapshot(collection(db, 'gapAnswers'), (s) => {
+          snap.gapAnswers = keep(s.docs.map((d) => parseGapAnswer(d.id, d.data({ serverTimestamps: 'estimate' }))));
+          answerIds = new Set(snap.gapAnswers.map((a) => a.id));
+          emit('gapAnswers');
         }, onError),
       ];
       return () => unsubs.forEach((u) => u());
@@ -288,20 +306,37 @@ export function createFirebaseBackend(): Backend {
       await settle(deleteDoc(tripRef(id)));
     },
 
-    async addRefuel(input: RefuelInput) {
-      await settle(
-        setDoc(doc(collection(db, 'refuels')), {
-          payer: me,
-          date: Timestamp.fromMillis(input.date),
-          amountCents: input.amountCents,
-          priceMilli: input.priceMilli,
-          odometerKm: input.odometerKm,
-          odometerPhotoId: input.odometerPhotoId,
-          receiptPhotoId: input.receiptPhotoId,
-          note: input.note,
+    async addRefuel(input: RefuelInput, splitTrip?: Trip | null) {
+      const batch = writeBatch(db);
+      if (splitTrip) {
+        // El viaje en curso termina donde se ha repostado y sigue uno nuevo desde ahí.
+        const at = { km: input.odometerKm, photoId: input.odometerPhotoId };
+        batch.update(tripRef(splitTrip.id), { end: at, endDate: Timestamp.fromMillis(Math.max(input.date, splitTrip.date)), updatedAt: serverTimestamp() });
+        batch.set(tripRef(), {
+          driver: me,
+          date: Timestamp.fromMillis(Math.max(input.date, splitTrip.date)),
+          start: at,
+          end: { km: null, photoId: null },
+          note: 'Sigue después de repostar',
           createdAt: serverTimestamp(),
-        }),
-      );
+          updatedAt: serverTimestamp(),
+          with: splitTrip.with ?? [],
+          addedBy: null,
+          confirmed: [],
+        });
+      }
+      batch.set(doc(collection(db, 'refuels')), {
+        payer: me,
+        date: Timestamp.fromMillis(input.date),
+        amountCents: input.amountCents,
+        priceMilli: input.priceMilli,
+        odometerKm: input.odometerKm,
+        odometerPhotoId: input.odometerPhotoId,
+        receiptPhotoId: input.receiptPhotoId,
+        note: input.note,
+        createdAt: serverTimestamp(),
+      });
+      await settle(batch.commit());
     },
 
     async deleteRefuel(id) {
@@ -340,6 +375,29 @@ export function createFirebaseBackend(): Backend {
 
     async undoSent(id) {
       await settle(deleteDoc(doc(db, 'payments', id)));
+    },
+
+    async answerGap(input) {
+      const ref = doc(db, 'gapAnswers', gapAnswerId(input.fromKm, input.toKm, me));
+      const fields = { used: input.used, km: input.used ? input.km : 0, day: input.used ? input.day : null };
+      await settle(
+        answerIds.has(ref.id)
+          ? updateDoc(ref, fields)
+          : setDoc(ref, { fromKm: input.fromKm, toKm: input.toKm, member: me, ...fields, createdAt: serverTimestamp() }),
+      );
+    },
+
+    async rejectPayment(id) {
+      await settle(deleteDoc(doc(db, 'payments', id)));
+    },
+
+    async recordReceived(refuelId, debtor, amountCents, adjustSeq) {
+      const base = { refuelId, debtor, creditor: me, amountCents, status: 'confirmed', sentAt: serverTimestamp(), confirmedAt: serverTimestamp() };
+      await settle(
+        adjustSeq
+          ? setDoc(doc(db, 'payments', adjustPaymentId(refuelId, debtor, me, adjustSeq)), { ...base, kind: 'adjust', seq: adjustSeq })
+          : setDoc(doc(db, 'payments', paymentId(refuelId, debtor)), base),
+      );
     },
 
     async confirmPayment(id) {

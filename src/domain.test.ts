@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adjustPaymentId, needsConfirmation, balanceFor, buildLedger, paymentId, splitCents, type Payment, type Refuel, type Trip } from './domain';
+import { adjustPaymentId, needsConfirmation, openTripAt, splitTripsAt, balanceFor, buildLedger, paymentId, splitCents, type Payment, type Refuel, type Trip } from './domain';
 
 let n = 0;
 const trip = (driver: string, s: number, e: number | null, opts: Partial<{ sp: boolean; ep: boolean }> = {}): Trip => ({
@@ -261,5 +261,92 @@ describe('quién tiene que confirmar un viaje', () => {
     expect(needsConfirmation({ ...base, addedBy: 'eva' }, 'ana')).toBe(true);
     expect(needsConfirmation({ ...base, addedBy: 'eva', with: ['eva'] }, 'eva')).toBe(false);
     expect(needsConfirmation({ ...base, with: ['luis'], confirmed: ['luis'] }, 'luis')).toBe(false);
+  });
+});
+
+describe('repostar con un viaje en curso', () => {
+  const t = (id: string, driver: string, a: number, b: number | null, extra: Partial<Trip> = {}): Trip => ({ id, driver, date: a, start: { km: a, photoId: 'p' }, end: { km: b, photoId: b == null ? null : 'p' }, note: '', createdAt: a, ...extra });
+  const r1: Refuel = { id: 'r1', payer: 'ana', date: 500, amountCents: 6000, priceMilli: 1500, odometerKm: 300, odometerPhotoId: 'p', receiptPhotoId: 'p', note: '', createdAt: 500 };
+  it('el viaje en curso de quien reposta se detecta; el de otro o uno posterior, no', () => {
+    const trips = [t('t1', 'luis', 0, 100), t('t2', 'ana', 100, null)];
+    expect(openTripAt(trips, 'ana', 300)?.id).toBe('t2');
+    expect(openTripAt(trips, 'luis', 300)).toBeNull();
+    expect(openTripAt(trips, 'ana', 50)).toBeNull(); // repostaje olvidado, de antes del viaje
+    // Un viaje sin terminar con otro viaje después ya tiene final (el inicio del siguiente): no se parte.
+    expect(openTripAt([t('t3', 'ana', 0, null), t('t4', 'luis', 100, 200)], 'ana', 300)).toBeNull();
+  });
+  it('partido en el km del repostaje, cada parte paga su depósito y no hace falta ningún ajuste', () => {
+    const open = t('t2', 'ana', 100, null, { with: ['eva'] });
+    const trips = splitTripsAt([t('t1', 'luis', 0, 100), open], open, 300, 500);
+    // Luis 100 km; Ana y Eva juntas 200 km → 20 € cada uno; el viaje nuevo sigue abierto para Ana y Eva.
+    const l = buildLedger(trips, [r1], []);
+    expect(Object.fromEntries(l.refuels[0].shares.map((x) => [x.email, x.cents]))).toEqual({ luis: 2000, ana: 2000, eva: 2000 });
+    const rest = l.trips.find((v) => v.trip.start.km === 300)!;
+    expect(rest.endState).toBe('open');
+    expect(rest.trip.with).toEqual(['eva']);
+    // Al terminarlo más tarde (en 360), esos 60 km van al depósito siguiente, no al ya repartido.
+    const done = trips.map((x) => (x.start.km === 300 ? { ...x, end: { km: 360, photoId: 'p' } } : x));
+    const l2 = buildLedger(done, [r1], []);
+    expect(Object.fromEntries(l2.refuels[0].shares.map((x) => [x.email, x.cents]))).toEqual({ luis: 2000, ana: 2000, eva: 2000 });
+  });
+  it('el repostaje de otra persona no cierra el viaje abierto: lo cierra el inicio del siguiente viaje', () => {
+    // Ana tiene un viaje sin terminar desde 100 y Luis reposta a 300.
+    const l = buildLedger([t('t1', 'luis', 0, 100), t('t2', 'ana', 100, null)], [{ ...r1, payer: 'luis' }], []);
+    expect(l.trips.find((x) => x.trip.id === 't2')!.endState).toBe('open');
+    // Luis empieza su viaje en 250: el de Ana termina ahí.
+    const l2 = buildLedger([t('t1', 'luis', 0, 100), t('t2', 'ana', 100, null), t('t3', 'luis', 250, 320)], [{ ...r1, payer: 'luis' }], []);
+    expect(l2.trips.find((x) => x.trip.id === 't2')!.endKm).toBe(250);
+    expect(l2.refuels[0].shares.find((x) => x.email === 'ana')?.cents).toBe(3000); // 150 de 300 km
+    expect(l2.refuels[0].shares.find((x) => x.email === 'luis')?.cents).toBe(3000); // 100 + 50
+  });
+  it('el inicio de otro viaje antes del repostaje sigue cerrando el abierto ahí', () => {
+    const l = buildLedger([t('t1', 'ana', 0, null), t('t2', 'luis', 120, 300)], [{ ...r1, payer: 'luis' }], []);
+    expect(l.trips.find((x) => x.trip.id === 't1')!.endKm).toBe(120);
+  });
+});
+
+describe('Bizum hecho pero sin marcar, y luego otro depósito', () => {
+  // Marta llena (20 €, todos los km de Ana). Ana le hace el Bizum pero no lo marca.
+  // Después llena Ana (30 €, todos los km de Marta). La app compensa: Marta solo pagaría 10 €.
+  const trip = (id: string, driver: string, a: number, b: number): Trip => ({ id, driver, date: a, start: { km: a, photoId: 'p' }, end: { km: b, photoId: 'p' }, note: '', createdAt: a });
+  const ref = (id: string, payer: string, km: number, cents: number): Refuel => ({ id, payer, date: km, amountCents: cents, priceMilli: 1500, odometerKm: km, odometerPhotoId: 'p', receiptPhotoId: 'p', note: '', createdAt: km });
+  const trips = [trip('t1', 'ana', 0, 100), trip('t2', 'marta', 100, 200)];
+  const refuels = [ref('r1', 'marta', 100, 2000), ref('r2', 'ana', 200, 3000)];
+  const pay = (refuelId: string, debtor: string, creditor: string, cents: number, extra: Partial<Payment> = {}): Payment => ({ id: paymentId(refuelId, debtor), refuelId, debtor, creditor, amountCents: cents, status: 'confirmed', sentAt: 1, confirmedAt: 2, ...extra });
+
+  it('sin anotarlo, la app compensa y a Ana le faltarían 20 €', () => {
+    const l = buildLedger(trips, refuels, []);
+    const ana = l.debts.find((d) => d.debtor === 'ana')!;
+    const marta = l.debts.find((d) => d.debtor === 'marta')!;
+    expect(ana.state).toBe('offset');
+    expect(marta.dueCents).toBe(1000);
+  });
+
+  it('al anotar el Bizum olvidado (lo haga quien pagó o quien lo recibió), se quita la compensación y cuadra', () => {
+    // Marta ya había pagado los 10 € que le pedía la app. Luego se anota el Bizum olvidado de Ana (20 €).
+    const payments = [pay('r2', 'marta', 'ana', 1000), pay('r1', 'ana', 'marta', 2000)];
+    const l = buildLedger(trips, refuels, payments);
+    const marta = l.debts.filter((d) => d.debtor === 'marta');
+    // A Marta le sale un ajuste de 20 € a favor de Ana (le tocaban 30 y pagó 10).
+    const adj = marta.find((d) => d.kind === 'adjust')!;
+    expect(adj.dueCents).toBe(2000);
+    expect(adj.creditor).toBe('ana');
+    // Pagado el ajuste, nadie debe nada y cada uno ha pagado justo su parte.
+    const done = [...payments, { ...pay('r2', 'marta', 'ana', 2000), id: adjustPaymentId('r2', 'marta', 'ana', 1), kind: 'adjust' as const, seq: 1 }];
+    const l2 = buildLedger(trips, refuels, done);
+    for (const p of ['ana', 'marta']) {
+      const b = balanceFor(l2, p);
+      expect(b.owes + b.owed + b.awaiting).toBe(0);
+    }
+    const net = (p: string) => refuels.filter((r) => r.payer === p).reduce((a, r) => a + r.amountCents, 0) + done.filter((x) => x.debtor === p).reduce((a, x) => a + x.amountCents, 0) - done.filter((x) => x.creditor === p).reduce((a, x) => a + x.amountCents, 0);
+    expect(net('ana')).toBe(2000); // sus km del primer depósito
+    expect(net('marta')).toBe(3000); // sus km del segundo
+  });
+
+  it('un Bizum marcado que no llegó no debe nada a nadie si se rechaza', () => {
+    const l = buildLedger(trips, refuels, [pay('r1', 'ana', 'marta', 2000, { status: 'sent', confirmedAt: null })]);
+    expect(l.debts.find((d) => d.debtor === 'ana')!.state).toBe('sent');
+    const l2 = buildLedger(trips, refuels, []); // «No me ha llegado» borra la marca
+    expect(l2.debts.find((d) => d.debtor === 'ana')!.state).toBe('offset');
   });
 });
